@@ -231,6 +231,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📬 Support
 
-- 📧 Email: your.email@example.com
-- 💬 Issues: [GitHub Issues](https://github.com/yourusername/powerbi-mcp-server/issues)
-- 📚 Docs: [Full Documentation](https://github.com/yourusername/powerbi-mcp-server/wiki)
+- 📧 Email: sulaimanahmed013@gmail.com
+- 💬 Issues: [GitHub Issues](https://github.com/sulaiman013/powerbi-mcp-server/issues)
+- 📚 Docs: [Full Documentation](https://github.com/sulaiman013/powerbi-mcp-server/wiki)
