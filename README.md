@@ -4,6 +4,12 @@
 [![Python](https://img.shields.io/badge/Python-3.8+-green)](https://www.python.org)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
+## 🎥 Live Demo
+
+![Power BI MCP Server Demo](PowerBI%20Mcp%20Demonstration.gif)
+
+*Transform your Power BI experience - ask questions in natural language and get instant insights from your data.*
+
 A Model Context Protocol (MCP) server that enables AI assistants to interact with Power BI datasets through natural language. Query your data, generate DAX, and get insights without leaving your AI assistant.
 
 ## ✨ Features
