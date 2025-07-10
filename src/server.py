@@ -61,6 +61,7 @@ load_dotenv()
 # Ensure pythonnet uses coreclr runtime (works on Linux)
 import pythonnet
 pythonnet_runtime = os.environ.get("PYTHONNET_RUNTIME", "coreclr")
+logger.info("Configuring pythonnet runtime: %s", pythonnet_runtime)
 try:
     pythonnet.set_runtime(pythonnet_runtime)
 except Exception as e:  # pragma: no cover - best effort
@@ -71,6 +72,7 @@ try:
     import clr
     from pyadomd import Pyadomd
     from Microsoft.AnalysisServices.AdomdClient import AdomdSchemaGuid
+    logger.debug("pyadomd and ADOMD.NET imported successfully")
 except Exception as e:  # pragma: no cover - runtime environment dependent
     clr = None
     Pyadomd = None
@@ -92,18 +94,20 @@ if clr:
         r"C:\Program Files (x86)\Microsoft.NET\ADOMD.NET\150",
     ]
 
+    logger.info("Searching for ADOMD.NET in: %s", ", ".join([p for p in adomd_paths if p]))
     for path in adomd_paths:
         if not path:
             continue
         if os.path.exists(path):
+            dll = os.path.join(path, "Microsoft.AnalysisServices.AdomdClient.dll")
             try:
                 sys.path.append(path)
-                clr.AddReference("Microsoft.AnalysisServices.AdomdClient")
+                clr.AddReference(dll)
                 adomd_loaded = True
-                logger.info(f"Loaded ADOMD.NET from {path}")
+                logger.info("Loaded ADOMD.NET from %s", dll)
                 break
             except Exception as e:  # pragma: no cover - best effort
-                logger.debug(f"Failed to load ADOMD.NET from {path}: {e}")
+                logger.warning("Failed to load ADOMD.NET from %s: %s", dll, e)
                 continue
 
 if not adomd_loaded:
