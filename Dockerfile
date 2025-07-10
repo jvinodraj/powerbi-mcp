@@ -10,6 +10,10 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends dotnet-runtime-8.0 && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Configure pythonnet to use the installed .NET runtime
+ENV DOTNET_ROOT=/usr/lib/dotnet \
+    PYTHONNET_RUNTIME=coreclr
+
 WORKDIR /app
 
 # Install Python dependencies
