@@ -9,12 +9,12 @@ import json
 from datetime import datetime, date
 from decimal import Decimal
 import sys
-import clr
 import openai
 import re
 from concurrent.futures import ThreadPoolExecutor
 import threading
 import logging
+import anyio  # Needed for server run loop cleanup
 
 # Configure logging to stderr for MCP debugging
 logging.basicConfig(
@@ -51,42 +51,65 @@ def clean_dax_query(dax_query: str) -> str:
     """Remove HTML/XML tags and other artifacts from DAX queries"""
     # Remove HTML/XML tags like <oii>, </oii>, etc.
     cleaned = re.sub(r'<[^>]+>', '', dax_query)
-    # Remove any remaining angle brackets
-    cleaned = cleaned.replace('<', '').replace('>', '')
-    # Clean up extra whitespace
+    # Collapse extra whitespace
     cleaned = ' '.join(cleaned.split())
     return cleaned
     
 # Load environment variables
 load_dotenv()
 
-# Add the path to the ADOMD.NET library
-adomd_paths = [
-    r"C:\Program Files\Microsoft.NET\ADOMD.NET\160",
-    r"C:\Program Files\Microsoft.NET\ADOMD.NET\150",
-    r"C:\Program Files (x86)\Microsoft.NET\ADOMD.NET\160",
-    r"C:\Program Files (x86)\Microsoft.NET\ADOMD.NET\150"
-]
+# Ensure pythonnet uses coreclr runtime (works on Linux)
+import pythonnet
+pythonnet_runtime = os.environ.get("PYTHONNET_RUNTIME", "coreclr")
+try:
+    pythonnet.set_runtime(pythonnet_runtime)
+except Exception as e:  # pragma: no cover - best effort
+    logger.warning("Failed to set pythonnet runtime: %s", e)
 
+# Attempt to import pyadomd and ADOMD.NET. These are optional so tests can run
+try:
+    import clr
+    from pyadomd import Pyadomd
+    from Microsoft.AnalysisServices.AdomdClient import AdomdSchemaGuid
+except Exception as e:  # pragma: no cover - runtime environment dependent
+    clr = None
+    Pyadomd = None
+    class _DummySchemaGuid:
+        Tables = 0
+
+    AdomdSchemaGuid = _DummySchemaGuid
+    logger.warning("ADOMD.NET not available: %s", e)
+
+# Try to load ADOMD.NET assemblies if clr is available
 adomd_loaded = False
-for path in adomd_paths:
-    if os.path.exists(path):
-        try:
-            sys.path.append(path)
-            clr.AddReference("Microsoft.AnalysisServices.AdomdClient")
-            adomd_loaded = True
-            logger.info(f"Loaded ADOMD.NET from {path}")
-            break
-        except Exception as e:
-            logger.debug(f"Failed to load ADOMD.NET from {path}: {e}")
+if clr:
+    env_adomd = os.environ.get("ADOMD_LIB_DIR")
+    adomd_paths = [
+        env_adomd,
+        r"C:\Program Files\Microsoft.NET\ADOMD.NET\160",
+        r"C:\Program Files\Microsoft.NET\ADOMD.NET\150",
+        r"C:\Program Files (x86)\Microsoft.NET\ADOMD.NET\160",
+        r"C:\Program Files (x86)\Microsoft.NET\ADOMD.NET\150",
+    ]
+
+    for path in adomd_paths:
+        if not path:
             continue
+        if os.path.exists(path):
+            try:
+                sys.path.append(path)
+                clr.AddReference("Microsoft.AnalysisServices.AdomdClient")
+                adomd_loaded = True
+                logger.info(f"Loaded ADOMD.NET from {path}")
+                break
+            except Exception as e:  # pragma: no cover - best effort
+                logger.debug(f"Failed to load ADOMD.NET from {path}: {e}")
+                continue
 
 if not adomd_loaded:
-    logger.error("Could not load ADOMD.NET library")
-    raise ImportError("Could not load ADOMD.NET library. Please install SSMS or ADOMD.NET client.")
-
-from pyadomd import Pyadomd
-from Microsoft.AnalysisServices.AdomdClient import AdomdSchemaGuid
+    logger.warning(
+        "ADOMD.NET library not found. Pyadomd functionality will be disabled."
+    )
 
 
 class PowerBIConnector:
@@ -97,10 +120,17 @@ class PowerBIConnector:
         self.metadata = {}
         # Thread pool for async operations
         self.executor = ThreadPoolExecutor(max_workers=4)
+
+    def _check_pyadomd(self):
+        if Pyadomd is None:
+            raise Exception(
+                "Pyadomd library not available. Ensure .NET runtime and ADOMD.NET are installed"
+            )
         
-    def connect(self, xmla_endpoint: str, tenant_id: str, client_id: str, 
+    def connect(self, xmla_endpoint: str, tenant_id: str, client_id: str,
                 client_secret: str, initial_catalog: str) -> bool:
         """Establish connection to Power BI dataset"""
+        self._check_pyadomd()
         self.connection_string = (
             f"Provider=MSOLAP;"
             f"Data Source={xmla_endpoint};"
@@ -125,6 +155,8 @@ class PowerBIConnector:
         """Discover all user-facing tables in the dataset"""
         if not self.connected:
             raise Exception("Not connected to Power BI")
+
+        self._check_pyadomd()
             
         # Return cached tables if already discovered
         if self.tables:
@@ -136,8 +168,9 @@ class PowerBIConnector:
                 adomd_connection = pyadomd_conn.conn
                 tables_dataset = adomd_connection.GetSchemaDataSet(AdomdSchemaGuid.Tables, None)
                 
-                if tables_dataset and tables_dataset.Tables.Count > 0:
-                    schema_table = tables_dataset.Tables[0]
+                tables_list_obj = getattr(tables_dataset, "Tables", None)
+                if tables_list_obj and len(tables_list_obj) > 0:
+                    schema_table = tables_list_obj[0]
                     for row in schema_table.Rows:
                         table_name = row["TABLE_NAME"]
                         if (not table_name.startswith("$") and 
@@ -156,6 +189,8 @@ class PowerBIConnector:
         """Get schema information for a specific table"""
         if not self.connected:
             raise Exception("Not connected to Power BI")
+
+        self._check_pyadomd()
             
         try:
             with Pyadomd(self.connection_string) as conn:
@@ -184,6 +219,10 @@ class PowerBIConnector:
     
     def get_measures_for_table(self, table_name: str) -> Dict[str, Any]:
         """Get measures for a measure table"""
+        if not self.connected:
+            raise Exception("Not connected to Power BI")
+
+        self._check_pyadomd()
         try:
             with Pyadomd(self.connection_string) as conn:
                 # Get table ID
@@ -219,6 +258,8 @@ class PowerBIConnector:
         """Execute a DAX query and return results"""
         if not self.connected:
             raise Exception("Not connected to Power BI")
+
+        self._check_pyadomd()
             
         # Clean the DAX query
         cleaned_query = clean_dax_query(dax_query)
@@ -691,6 +732,7 @@ class PowerBIMCPServer:
                         ),
                     ),
                 )
+            logger.info("Server run completed")
         except anyio.BrokenResourceError:
             logger.info("Client disconnected")
         except Exception as e:
