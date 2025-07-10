@@ -731,6 +731,7 @@ class PowerBIMCPServer:
     
     async def run(self):
         """Run the MCP server"""
+        persist = os.getenv("MCP_PERSIST", "1") != "0"
         try:
             logger.info("Starting Power BI MCP Server...")
             async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
@@ -752,6 +753,13 @@ class PowerBIMCPServer:
         except Exception as e:
             logger.error(f"Server error: {e}", exc_info=True)
         finally:
+            if persist:
+                logger.info("Entering idle loop to keep server running")
+                try:
+                    while True:
+                        await asyncio.sleep(3600)
+                except asyncio.CancelledError:
+                    pass
             logger.info("Server shutting down")
 
 
