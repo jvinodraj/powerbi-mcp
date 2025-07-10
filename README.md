@@ -33,8 +33,8 @@ A Model Context Protocol (MCP) server that enables AI assistants to interact wit
 ### Prerequisites
 
 - Python 3.8 or higher
-- Windows OS (required for ADOMD.NET)
-- SQL Server Management Studio (SSMS) or ADOMD.NET client libraries
+- Windows with ADOMD.NET **or** Docker on Linux (container includes the runtime)
+- SQL Server Management Studio (SSMS) or ADOMD.NET client libraries (Windows only)
 - Power BI Pro/Premium with XMLA endpoint enabled
 - Azure AD Service Principal with access to your Power BI dataset
 - OpenAI API key
@@ -228,8 +228,8 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for deta
 ### Common Issues
 
 1. **ADOMD.NET not found**
-   - Install SQL Server Management Studio (SSMS)
-   - Or download [ADOMD.NET](https://docs.microsoft.com/en-us/analysis-services/client-libraries)
+   - For Windows, install SQL Server Management Studio (SSMS)
+   - On Linux, use the provided Docker image which bundles the cross-platform ADOMD.NET runtime
 
 2. **Connection fails**
    - Verify XMLA endpoint is enabled in Power BI

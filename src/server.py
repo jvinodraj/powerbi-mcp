@@ -57,6 +57,14 @@ def clean_dax_query(dax_query: str) -> str:
 # Load environment variables
 load_dotenv()
 
+# Ensure pythonnet uses coreclr runtime (works on Linux)
+import pythonnet
+pythonnet_runtime = os.environ.get("PYTHONNET_RUNTIME", "coreclr")
+try:
+    pythonnet.set_runtime(pythonnet_runtime)
+except Exception as e:  # pragma: no cover - best effort
+    logger.warning("Failed to set pythonnet runtime: %s", e)
+
 # Attempt to import pyadomd and ADOMD.NET. These are optional so tests can run
 try:
     import clr
