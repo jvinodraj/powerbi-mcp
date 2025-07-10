@@ -98,7 +98,7 @@ docker run -it --rm -e OPENAI_API_KEY=<key> powerbi-mcp
 ```
 
 The container includes the .NET runtime required by `pythonnet` and `pyadomd`.
-It sets `PYTHONNET_RUNTIME=coreclr` and `DOTNET_ROOT=/usr/lib/dotnet` so the
+It sets `PYTHONNET_RUNTIME=coreclr` and `DOTNET_ROOT=/usr/share/dotnet` so the
 .NET runtime is detected automatically. Environment variables mirror those in
 `.env.example`; pass them with `-e VAR=value` or provide a `.env` file in the
 build context.

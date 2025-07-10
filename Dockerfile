@@ -11,8 +11,9 @@ RUN apt-get update && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Configure pythonnet to use the installed .NET runtime
-ENV DOTNET_ROOT=/usr/lib/dotnet \
-    PYTHONNET_RUNTIME=coreclr
+ENV DOTNET_ROOT=/usr/share/dotnet \
+    PYTHONNET_RUNTIME=coreclr \
+    PATH="$PATH:/usr/share/dotnet"
 
 WORKDIR /app
 
