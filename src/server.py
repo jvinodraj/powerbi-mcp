@@ -67,20 +67,22 @@ try:
 except Exception as e:  # pragma: no cover - best effort
     logger.warning("Failed to set pythonnet runtime: %s", e)
 
-# Attempt to import pyadomd and ADOMD.NET. These are optional so tests can run
+# Attempt to import clr and pyadomd. These may be missing when ADOMD.NET is not
+# installed. We load the actual ADOMD.NET assembly later if possible.
 try:
-    import clr
-    from pyadomd import Pyadomd
-    from Microsoft.AnalysisServices.AdomdClient import AdomdSchemaGuid
-    logger.debug("pyadomd and ADOMD.NET imported successfully")
+    import clr  # type: ignore
+    from pyadomd import Pyadomd  # type: ignore
+    logger.debug("pythonnet and pyadomd imported successfully")
 except Exception as e:  # pragma: no cover - runtime environment dependent
     clr = None
     Pyadomd = None
-    class _DummySchemaGuid:
-        Tables = 0
+    logger.warning("pyadomd not available: %s", e)
 
-    AdomdSchemaGuid = _DummySchemaGuid
-    logger.warning("ADOMD.NET not available: %s", e)
+# Placeholder for AdomdSchemaGuid if the assembly fails to load
+class _DummySchemaGuid:
+    Tables = 0
+
+AdomdSchemaGuid = _DummySchemaGuid
 
 # Try to load ADOMD.NET assemblies if clr is available
 adomd_loaded = False
@@ -109,6 +111,14 @@ if clr:
             except Exception as e:  # pragma: no cover - best effort
                 logger.warning("Failed to load ADOMD.NET from %s: %s", dll, e)
                 continue
+
+    if adomd_loaded:
+        try:
+            from Microsoft.AnalysisServices.AdomdClient import AdomdSchemaGuid as _ASG
+            globals()["AdomdSchemaGuid"] = _ASG
+            logger.debug("ADOMD.NET types imported")
+        except Exception as e:  # pragma: no cover - best effort
+            logger.warning("Failed to import AdomdSchemaGuid: %s", e)
 
 if not adomd_loaded:
     logger.warning(
