@@ -2,6 +2,7 @@
 
 When modifying code in this repository:
 
+- Recreate the environment described in the `Dockerfile` (install the .NET runtime and ADOMD.NET library) so tests mimic the container as closely as possible.
 - Always run `pytest -q` after changes.
 - Attempt to build and run the Docker image to ensure the server starts:
   ```bash
