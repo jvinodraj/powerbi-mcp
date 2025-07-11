@@ -33,8 +33,8 @@ A Model Context Protocol (MCP) server that enables AI assistants to interact wit
 ### Prerequisites
 
 - Python 3.8 or higher
-- Windows OS (required for ADOMD.NET)
-- SQL Server Management Studio (SSMS) or ADOMD.NET client libraries
+- Windows with ADOMD.NET **or** Docker on Linux (container includes the runtime)
+- SQL Server Management Studio (SSMS) or ADOMD.NET client libraries (Windows only)
 - Power BI Pro/Premium with XMLA endpoint enabled
 - Azure AD Service Principal with access to your Power BI dataset
 - OpenAI API key
@@ -84,6 +84,34 @@ Add to your Claude Desktop configuration file:
   }
 }
 ```
+
+### Docker
+
+Build the container image:
+```bash
+docker build -t powerbi-mcp .
+```
+
+Run the server:
+```bash
+docker run -it --rm -e OPENAI_API_KEY=<key> powerbi-mcp
+```
+The container listens on port `8000` by default. Override the host or port using
+environment variables or command-line arguments:
+```bash
+docker run -it --rm -e OPENAI_API_KEY=<key> -p 7000:7000 powerbi-mcp \
+  python src/server.py --host 0.0.0.0 --port 7000
+```
+
+The server exposes a Server-Sent Events endpoint at `/sse`. Clients should
+connect to this endpoint and then POST JSON-RPC messages to the path provided in
+the initial `endpoint` event (typically `/messages/`).
+
+The container includes the .NET runtime required by `pythonnet` and `pyadomd`.
+It sets `PYTHONNET_RUNTIME=coreclr` and `DOTNET_ROOT=/usr/share/dotnet` so the
+.NET runtime is detected automatically. Environment variables mirror those in
+`.env.example`; pass them with `-e VAR=value` or provide a `.env` file in the
+build context.
 
 ## 📖 Usage
 
@@ -210,8 +238,8 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for deta
 ### Common Issues
 
 1. **ADOMD.NET not found**
-   - Install SQL Server Management Studio (SSMS)
-   - Or download [ADOMD.NET](https://docs.microsoft.com/en-us/analysis-services/client-libraries)
+   - For Windows, install SQL Server Management Studio (SSMS)
+   - On Linux, use the provided Docker image which bundles the cross-platform ADOMD.NET runtime
 
 2. **Connection fails**
    - Verify XMLA endpoint is enabled in Power BI
