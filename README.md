@@ -96,6 +96,12 @@ Run the server:
 ```bash
 docker run -it --rm -e OPENAI_API_KEY=<key> powerbi-mcp
 ```
+The container listens on port `8000` by default. Override the host or port using
+environment variables or command-line arguments:
+```bash
+docker run -it --rm -e OPENAI_API_KEY=<key> -p 7000:7000 powerbi-mcp \
+  python src/server.py --host 0.0.0.0 --port 7000
+```
 
 The server exposes a Server-Sent Events endpoint at `/sse`. Clients should
 connect to this endpoint and then POST JSON-RPC messages to the path provided in
