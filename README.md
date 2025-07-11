@@ -97,6 +97,10 @@ Run the server:
 docker run -it --rm -e OPENAI_API_KEY=<key> powerbi-mcp
 ```
 
+The server exposes a Server-Sent Events endpoint at `/sse`. Clients should
+connect to this endpoint and then POST JSON-RPC messages to the path provided in
+the initial `endpoint` event (typically `/messages/`).
+
 The container includes the .NET runtime required by `pythonnet` and `pyadomd`.
 It sets `PYTHONNET_RUNTIME=coreclr` and `DOTNET_ROOT=/usr/share/dotnet` so the
 .NET runtime is detected automatically. Environment variables mirror those in

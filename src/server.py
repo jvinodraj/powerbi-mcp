@@ -2,7 +2,11 @@ import asyncio
 from typing import Any, Dict, List, Optional
 from mcp.server import Server, NotificationOptions
 from mcp.server.models import InitializationOptions
-import mcp.server.stdio
+from mcp.server.sse import SseServerTransport
+from starlette.applications import Starlette
+from starlette.responses import Response
+from starlette.routing import Route, Mount
+import uvicorn
 import os
 from dotenv import load_dotenv
 import json
@@ -730,11 +734,15 @@ class PowerBIMCPServer:
             return f"Error generating suggestions: {str(e)}"
     
     async def run(self):
-        """Run the MCP server"""
+        """Run the MCP server over SSE"""
         persist = os.getenv("MCP_PERSIST", "1") != "0"
-        try:
-            logger.info("Starting Power BI MCP Server...")
-            async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
+        host = os.getenv("HOST", "0.0.0.0")
+        port = int(os.getenv("PORT", "8000"))
+
+        sse = SseServerTransport("/messages/")
+
+        async def handle_sse(scope, receive, send):
+            async with sse.connect_sse(scope, receive, send) as (read_stream, write_stream):
                 await self.server.run(
                     read_stream,
                     write_stream,
@@ -747,9 +755,21 @@ class PowerBIMCPServer:
                         ),
                     ),
                 )
+            return Response()
+
+        routes = [
+            Route("/sse", handle_sse, methods=["GET"]),
+            Mount("/messages/", app=sse.handle_post_message),
+        ]
+
+        app = Starlette(routes=routes)
+        config = uvicorn.Config(app, host=host, port=port, log_level="info")
+        server = uvicorn.Server(config)
+
+        try:
+            logger.info("Starting Power BI MCP Server on %s:%s...", host, port)
+            await server.serve()
             logger.info("Server run completed")
-        except anyio.BrokenResourceError:
-            logger.info("Client disconnected")
         except Exception as e:
             logger.error(f"Server error: {e}", exc_info=True)
         finally:
