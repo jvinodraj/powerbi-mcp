@@ -1,4 +1,5 @@
 import asyncio
+import argparse
 from typing import Any, Dict, List, Optional
 from mcp.server import Server, NotificationOptions
 from mcp.server.models import InitializationOptions
@@ -426,7 +427,9 @@ class DataAnalyzer:
 
 
 class PowerBIMCPServer:
-    def __init__(self):
+    def __init__(self, host: Optional[str] = None, port: Optional[int] = None):
+        self.host = host or os.getenv("HOST", "0.0.0.0")
+        self.port = int(port or os.getenv("PORT", "8000"))
         self.server = Server("powerbi-mcp-server")
         self.connector = PowerBIConnector()
         self.analyzer = None
@@ -736,8 +739,8 @@ class PowerBIMCPServer:
     async def run(self):
         """Run the MCP server over SSE"""
         persist = os.getenv("MCP_PERSIST", "1") != "0"
-        host = os.getenv("HOST", "0.0.0.0")
-        port = int(os.getenv("PORT", "8000"))
+        host = self.host
+        port = self.port
 
         sse = SseServerTransport("/messages/")
 
@@ -793,7 +796,12 @@ class PowerBIMCPServer:
 
 # Main entry point
 async def main():
-    server = PowerBIMCPServer()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--host", default=os.getenv("HOST", "0.0.0.0"))
+    parser.add_argument("--port", type=int, default=int(os.getenv("PORT", "8000")))
+    args = parser.parse_args()
+
+    server = PowerBIMCPServer(host=args.host, port=args.port)
     await server.run()
 
 if __name__ == "__main__":
