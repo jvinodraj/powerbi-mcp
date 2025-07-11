@@ -741,24 +741,32 @@ class PowerBIMCPServer:
 
         sse = SseServerTransport("/messages/")
 
-        async def handle_sse(scope, receive, send):
-            async with sse.connect_sse(scope, receive, send) as (read_stream, write_stream):
-                await self.server.run(
+        class SseApp:
+            async def __call__(self, scope, receive, send):
+                async with sse.connect_sse(scope, receive, send) as (
                     read_stream,
                     write_stream,
-                    InitializationOptions(
-                        server_name="powerbi-mcp-server",
-                        server_version="1.0.0",
-                        capabilities=self.server.get_capabilities(
-                            notification_options=NotificationOptions(),
-                            experimental_capabilities={},
+                ):
+                    await self_server.run(
+                        read_stream,
+                        write_stream,
+                        InitializationOptions(
+                            server_name="powerbi-mcp-server",
+                            server_version="1.0.0",
+                            capabilities=self_server.get_capabilities(
+                                notification_options=NotificationOptions(),
+                                experimental_capabilities={},
+                            ),
                         ),
-                    ),
-                )
-            return Response()
+                    )
+                # Return empty response once stream closes
+                await Response()(scope, receive, send)
+
+        self_server = self.server
+        sse_app = SseApp()
 
         routes = [
-            Route("/sse", handle_sse, methods=["GET"]),
+            Route("/sse", sse_app, methods=["GET"]),
             Mount("/messages/", app=sse.handle_post_message),
         ]
 
