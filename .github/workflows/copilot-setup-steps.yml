@@ -12,6 +12,9 @@ jobs:
   # The job MUST be called `copilot-setup-steps` or it will not be picked up by Copilot.
   copilot-setup-steps:
     runs-on: ubuntu-latest
+    
+    # Specify the environment to use for secrets and variables
+    environment: copilot
 
     # Set the permissions to the lowest permissions possible needed for your steps.
     # Copilot will be given its own token for its operations.
@@ -41,6 +44,95 @@ jobs:
         run: |
           pip install --no-cache-dir -r requirements.txt
 
+      - name: Configure Environment Variables from Secrets
+        run: |
+          echo "Configuring environment variables from GitHub secrets and variables..."
+          
+          # OpenAI Configuration (secrets)
+          if [ -n "${{ secrets.OPENAI_API_KEY }}" ]; then
+            echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
+            echo "✅ OpenAI API key configured"
+          fi
+          
+          # OpenAI Model (variable, with default)
+          OPENAI_MODEL="${{ vars.OPENAI_MODEL || 'gpt-4o-mini' }}"
+          echo "OPENAI_MODEL=$OPENAI_MODEL" >> $GITHUB_ENV
+          echo "✅ OpenAI model configured: $OPENAI_MODEL"
+          
+          # Power BI Credentials (secrets)
+          if [ -n "${{ secrets.DEFAULT_TENANT_ID }}" ]; then
+            echo "DEFAULT_TENANT_ID=${{ secrets.DEFAULT_TENANT_ID }}" >> $GITHUB_ENV
+            echo "✅ Default Tenant ID configured"
+          fi
+          
+          if [ -n "${{ secrets.DEFAULT_CLIENT_ID }}" ]; then
+            echo "DEFAULT_CLIENT_ID=${{ secrets.DEFAULT_CLIENT_ID }}" >> $GITHUB_ENV
+            echo "✅ Default Client ID configured"
+          fi
+          
+          if [ -n "${{ secrets.DEFAULT_CLIENT_SECRET }}" ]; then
+            echo "DEFAULT_CLIENT_SECRET=${{ secrets.DEFAULT_CLIENT_SECRET }}" >> $GITHUB_ENV
+            echo "✅ Default Client Secret configured"
+          fi
+          
+          # Integration Tests Configuration (variable)
+          ENABLE_INTEGRATION_TESTS="${{ vars.ENABLE_INTEGRATION_TESTS || 'false' }}"
+          echo "ENABLE_INTEGRATION_TESTS=$ENABLE_INTEGRATION_TESTS" >> $GITHUB_ENV
+          echo "✅ Integration tests enabled: $ENABLE_INTEGRATION_TESTS"
+          
+          # Test Configuration (secrets and variables)
+          if [ -n "${{ secrets.TEST_XMLA_ENDPOINT }}" ]; then
+            echo "TEST_XMLA_ENDPOINT=${{ secrets.TEST_XMLA_ENDPOINT }}" >> $GITHUB_ENV
+            echo "✅ Test XMLA endpoint configured"
+          fi
+          
+          if [ -n "${{ secrets.TEST_TENANT_ID }}" ]; then
+            echo "TEST_TENANT_ID=${{ secrets.TEST_TENANT_ID }}" >> $GITHUB_ENV
+            echo "✅ Test Tenant ID configured"
+          fi
+          
+          if [ -n "${{ secrets.TEST_CLIENT_ID }}" ]; then
+            echo "TEST_CLIENT_ID=${{ secrets.TEST_CLIENT_ID }}" >> $GITHUB_ENV
+            echo "✅ Test Client ID configured"
+          fi
+          
+          if [ -n "${{ secrets.TEST_CLIENT_SECRET }}" ]; then
+            echo "TEST_CLIENT_SECRET=${{ secrets.TEST_CLIENT_SECRET }}" >> $GITHUB_ENV
+            echo "✅ Test Client Secret configured"
+          fi
+          
+          if [ -n "${{ secrets.TEST_INITIAL_CATALOG }}" ]; then
+            echo "TEST_INITIAL_CATALOG=${{ secrets.TEST_INITIAL_CATALOG }}" >> $GITHUB_ENV
+            echo "✅ Test Initial Catalog configured"
+          fi
+          
+          if [ -n "${{ secrets.TEST_EXPECTED_TABLE }}" ]; then
+            echo "TEST_EXPECTED_TABLE=${{ secrets.TEST_EXPECTED_TABLE }}" >> $GITHUB_ENV
+            echo "✅ Test Expected Table configured"
+          fi
+          
+          if [ -n "${{ secrets.TEST_EXPECTED_COLUMN }}" ]; then
+            echo "TEST_EXPECTED_COLUMN=${{ secrets.TEST_EXPECTED_COLUMN }}" >> $GITHUB_ENV
+            echo "✅ Test Expected Column configured"
+          fi
+          
+          if [ -n "${{ secrets.TEST_DAX_QUERY }}" ]; then
+            echo "TEST_DAX_QUERY=${{ secrets.TEST_DAX_QUERY }}" >> $GITHUB_ENV
+            echo "✅ Test DAX Query configured"
+          fi
+          
+          if [ -n "${{ secrets.TEST_MIN_TABLES_COUNT }}" ]; then
+            echo "TEST_MIN_TABLES_COUNT=${{ secrets.TEST_MIN_TABLES_COUNT }}" >> $GITHUB_ENV
+            echo "✅ Test Min Tables Count configured"
+          fi
+          
+          # Logging Configuration (variable, with default)
+          LOG_LEVEL="${{ vars.LOG_LEVEL || 'INFO' }}"
+          echo "LOG_LEVEL=$LOG_LEVEL" >> $GITHUB_ENV
+          echo "✅ Log level configured: $LOG_LEVEL"
+          
+          echo "✅ All environment variables configured from secrets and variables"
+
       - name: Configure .NET Environment Variables
         run: |
           # Source the ADOMD activation script if it exists and export to GITHUB_ENV
@@ -64,10 +156,20 @@ jobs:
 
       - name: Test Environment Setup
         env:
+          # .NET Configuration
           DOTNET_ROOT: ${{ env.DOTNET_ROOT }}
           PYTHONNET_RUNTIME: ${{ env.PYTHONNET_RUNTIME }}
           ADOMD_LIB_DIR: ${{ env.ADOMD_LIB_DIR }}
           ADOMD_LIB_PATH: ${{ env.ADOMD_LIB_PATH }}
+          # OpenAI Configuration
+          OPENAI_API_KEY: ${{ env.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ env.OPENAI_MODEL }}
+          # Power BI Configuration
+          DEFAULT_TENANT_ID: ${{ env.DEFAULT_TENANT_ID }}
+          DEFAULT_CLIENT_ID: ${{ env.DEFAULT_CLIENT_ID }}
+          DEFAULT_CLIENT_SECRET: ${{ env.DEFAULT_CLIENT_SECRET }}
+          # Logging
+          LOG_LEVEL: ${{ env.LOG_LEVEL }}
         run: |
           echo "Testing Python environment..."
           python --version
@@ -136,10 +238,20 @@ jobs:
 
       - name: Run Unit Tests
         env:
+          # .NET Configuration
           DOTNET_ROOT: ${{ env.DOTNET_ROOT }}
           PYTHONNET_RUNTIME: ${{ env.PYTHONNET_RUNTIME }}
           ADOMD_LIB_DIR: ${{ env.ADOMD_LIB_DIR }}
           ADOMD_LIB_PATH: ${{ env.ADOMD_LIB_PATH }}
+          # OpenAI Configuration
+          OPENAI_API_KEY: ${{ env.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ env.OPENAI_MODEL }}
+          # Power BI Configuration
+          DEFAULT_TENANT_ID: ${{ env.DEFAULT_TENANT_ID }}
+          DEFAULT_CLIENT_ID: ${{ env.DEFAULT_CLIENT_ID }}
+          DEFAULT_CLIENT_SECRET: ${{ env.DEFAULT_CLIENT_SECRET }}
+          # Logging
+          LOG_LEVEL: ${{ env.LOG_LEVEL }}
         run: |
           echo "Running unit tests to verify environment..."
           python -m pytest tests/ -k "not test_integration" -v
@@ -148,10 +260,31 @@ jobs:
       - name: Run Integration Tests
         if: env.ENABLE_INTEGRATION_TESTS == 'true'
         env:
+          # .NET Configuration
           DOTNET_ROOT: ${{ env.DOTNET_ROOT }}
           PYTHONNET_RUNTIME: ${{ env.PYTHONNET_RUNTIME }}
           ADOMD_LIB_DIR: ${{ env.ADOMD_LIB_DIR }}
           ADOMD_LIB_PATH: ${{ env.ADOMD_LIB_PATH }}
+          # OpenAI Configuration
+          OPENAI_API_KEY: ${{ env.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ env.OPENAI_MODEL }}
+          # Power BI Configuration
+          DEFAULT_TENANT_ID: ${{ env.DEFAULT_TENANT_ID }}
+          DEFAULT_CLIENT_ID: ${{ env.DEFAULT_CLIENT_ID }}
+          DEFAULT_CLIENT_SECRET: ${{ env.DEFAULT_CLIENT_SECRET }}
+          # Test Configuration
+          ENABLE_INTEGRATION_TESTS: ${{ env.ENABLE_INTEGRATION_TESTS }}
+          TEST_XMLA_ENDPOINT: ${{ env.TEST_XMLA_ENDPOINT }}
+          TEST_TENANT_ID: ${{ env.TEST_TENANT_ID }}
+          TEST_CLIENT_ID: ${{ env.TEST_CLIENT_ID }}
+          TEST_CLIENT_SECRET: ${{ env.TEST_CLIENT_SECRET }}
+          TEST_INITIAL_CATALOG: ${{ env.TEST_INITIAL_CATALOG }}
+          TEST_EXPECTED_TABLE: ${{ env.TEST_EXPECTED_TABLE }}
+          TEST_EXPECTED_COLUMN: ${{ env.TEST_EXPECTED_COLUMN }}
+          TEST_DAX_QUERY: ${{ env.TEST_DAX_QUERY }}
+          TEST_MIN_TABLES_COUNT: ${{ env.TEST_MIN_TABLES_COUNT }}
+          # Logging
+          LOG_LEVEL: ${{ env.LOG_LEVEL }}
         run: |
           echo "Running integration tests..."
           python run_integration_tests.py --yes
