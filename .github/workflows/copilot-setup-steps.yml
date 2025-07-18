@@ -1,0 +1,129 @@
+name: "Copilot Setup Steps"
+
+# Automatically run the setup steps when they are changed to allow for easy validation, and
+# allow manual testing through the repository's "Actions" tab
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+  pull_request:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+
+jobs:
+  # The job MUST be called `copilot-setup-steps` or it will not be picked up by Copilot.
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+
+    # Set the permissions to the lowest permissions possible needed for your steps.
+    # Copilot will be given its own token for its operations.
+    permissions:
+      # If you want to clone the repository as part of your setup steps, for example to install dependencies, you'll need the `contents: read` permission. If you don't clone the repository in your setup steps, Copilot will do this for you automatically after the steps complete.
+      contents: read
+
+    # You can define any steps you want, and they will run before the agent starts.
+    # If you do not check out your code, Copilot will do this for you.
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install .NET Runtime and ADOMD.NET Dependencies
+        run: |
+          # Make the install script executable and run it in user mode
+          chmod +x scripts/install_dotnet_adomd.sh
+          ./scripts/install_dotnet_adomd.sh --user
+
+      - name: Install Python Dependencies
+        run: |
+          pip install --no-cache-dir -r requirements.txt
+
+      - name: Configure .NET Environment Variables
+        run: |
+          # Source the ADOMD activation script if it exists
+          if [ -f "$HOME/.local/lib/adomd/activate_adomd_env.sh" ]; then
+            echo "Sourcing ADOMD environment activation script..."
+            source "$HOME/.local/lib/adomd/activate_adomd_env.sh"
+            echo "✅ ADOMD environment configured"
+          else
+            echo "Setting up basic .NET environment variables..."
+            export DOTNET_ROOT="$HOME/.local/dotnet"
+            export PYTHONNET_RUNTIME="coreclr"
+            export ADOMD_LIB_DIR="$HOME/.local/lib/adomd/lib/netcoreapp3.0"
+            export PATH="$DOTNET_ROOT:$PATH"
+            echo "✅ Basic .NET environment configured"
+          fi
+
+      - name: Test Environment Setup
+        run: |
+          echo "Testing Python environment..."
+          python --version
+          
+          echo "Testing required packages..."
+          python -c "
+          import sys
+          sys.path.insert(0, 'src')
+          
+          try:
+              import mcp
+              print('✅ MCP package available')
+          except ImportError as e:
+              print(f'❌ MCP package issue: {e}')
+              
+          try:
+              import pyadomd
+              print('✅ pyadomd package available')
+          except ImportError as e:
+              print(f'❌ pyadomd package issue: {e}')
+              
+          try:
+              import pythonnet
+              print('✅ pythonnet package available')
+          except ImportError as e:
+              print(f'❌ pythonnet package issue: {e}')
+              
+          try:
+              import openai
+              print('✅ OpenAI package available')
+          except ImportError as e:
+              print(f'❌ OpenAI package issue: {e}')
+          "
+          
+          echo "Testing server import..."
+          python -c "
+          import sys
+          sys.path.insert(0, 'src')
+          try:
+              from server import PowerBIMCPServer
+              print('✅ PowerBI MCP Server can be imported')
+          except Exception as e:
+              print(f'❌ Server import issue: {e}')
+          "
+
+      - name: Setup Development Tools
+        run: |
+          echo "Setting up development tools..."
+          
+          # Test black formatting
+          python -m black --check src/ tests/ --diff || echo "Run 'python -m black src/ tests/' to format code"
+          
+          # Test flake8 linting
+          python -m flake8 src/ tests/ || echo "Code linting issues found"
+          
+          # Test mypy type checking
+          python -m mypy src/ || echo "Type checking issues found"
+          
+          echo "✅ Development tools configured"
+        continue-on-error: true
+
+      - name: Run Unit Tests
+        run: |
+          echo "Running unit tests to verify environment..."
+          python -m pytest tests/ -k "not test_integration" -v
+        continue-on-error: true

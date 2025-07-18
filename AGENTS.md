@@ -2,6 +2,39 @@
 
 When modifying code in this repository:
 
+## Environment Consistency Requirements
+
+This repository supports three distinct environments that must be kept consistent:
+
+### 1. **Local Development Environment (Windows)**
+- Windows with Visual Studio Code
+- SSMS/ADOMD.NET libraries
+- `.env` file for configuration
+- Manual package installation
+
+### 2. **Docker Environment (Linux)**
+- Linux container with Python 3.11-slim
+- Uses `install_dotnet_adomd.sh --system`
+- Environment variables via `docker-entrypoint.sh`
+- Systemwide .NET installation (`/usr/share/dotnet`)
+
+### 3. **Copilot Agent Environment (Linux)**
+- Linux container/codespace
+- Uses `install_dotnet_adomd.sh --user`
+- Environment variables via secrets (no .env file)
+- User-local .NET installation (`$HOME/.local/dotnet`)
+
+### **Consistency Rules:**
+- **All environments must use the same `install_dotnet_adomd.sh` script** (with appropriate `--system` or `--user` flag)
+- **All environments must use `pip install -r requirements.txt`** for Python dependencies
+- **All environments must support the same core functionality** (MCP server, Power BI connectivity, testing)
+- **When adding new dependencies:** Update `requirements.txt` and verify compatibility across all environments
+- **When modifying installation scripts:** Test in Docker environment first, then update copilot-setup-steps.yml
+- **Environment-specific differences are acceptable only for:**
+  - Installation paths (system vs user)
+  - Configuration delivery method (.env vs secrets)
+  - Platform-specific workarounds
+
 ## Environment Setup
 - Recreate the environment described in the `Dockerfile` (install the .NET runtime and ADOMD.NET library) so tests mimic the container as closely as possible.
 
