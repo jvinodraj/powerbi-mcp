@@ -46,24 +46,39 @@ jobs:
 
       - name: Configure .NET Environment Variables
         run: |
-          # Source the ADOMD activation script if it exists
+          # Source the ADOMD activation script if it exists and export to GITHUB_ENV
           if [ -f "$HOME/.local/lib/adomd/activate_adomd_env.sh" ]; then
             echo "Sourcing ADOMD environment activation script..."
             source "$HOME/.local/lib/adomd/activate_adomd_env.sh"
+            echo "DOTNET_ROOT=$DOTNET_ROOT" >> $GITHUB_ENV
+            echo "PYTHONNET_RUNTIME=$PYTHONNET_RUNTIME" >> $GITHUB_ENV
+            echo "ADOMD_LIB_DIR=$ADOMD_LIB_DIR" >> $GITHUB_ENV
+            echo "ADOMD_LIB_PATH=$ADOMD_LIB_PATH" >> $GITHUB_ENV
+            echo "$DOTNET_ROOT" >> $GITHUB_PATH
             echo "✅ ADOMD environment configured"
           else
             echo "Setting up basic .NET environment variables..."
-            export DOTNET_ROOT="$HOME/.local/dotnet"
-            export PYTHONNET_RUNTIME="coreclr"
-            export ADOMD_LIB_DIR="$HOME/.local/lib/adomd/lib/netcoreapp3.0"
-            export PATH="$DOTNET_ROOT:$PATH"
+            echo "DOTNET_ROOT=$HOME/.local/dotnet" >> $GITHUB_ENV
+            echo "PYTHONNET_RUNTIME=coreclr" >> $GITHUB_ENV
+            echo "ADOMD_LIB_DIR=$HOME/.local/lib/adomd/lib/netcoreapp3.0" >> $GITHUB_ENV
+            echo "$HOME/.local/dotnet" >> $GITHUB_PATH
             echo "✅ Basic .NET environment configured"
           fi
 
       - name: Test Environment Setup
+        env:
+          DOTNET_ROOT: ${{ env.DOTNET_ROOT }}
+          PYTHONNET_RUNTIME: ${{ env.PYTHONNET_RUNTIME }}
+          ADOMD_LIB_DIR: ${{ env.ADOMD_LIB_DIR }}
+          ADOMD_LIB_PATH: ${{ env.ADOMD_LIB_PATH }}
         run: |
           echo "Testing Python environment..."
           python --version
+          
+          echo "Testing .NET environment..."
+          echo "DOTNET_ROOT=$DOTNET_ROOT"
+          echo "PYTHONNET_RUNTIME=$PYTHONNET_RUNTIME"
+          echo "ADOMD_LIB_DIR=$ADOMD_LIB_DIR"
           
           echo "Testing required packages..."
           python -c "
@@ -123,6 +138,11 @@ jobs:
         continue-on-error: true
 
       - name: Run Unit Tests
+        env:
+          DOTNET_ROOT: ${{ env.DOTNET_ROOT }}
+          PYTHONNET_RUNTIME: ${{ env.PYTHONNET_RUNTIME }}
+          ADOMD_LIB_DIR: ${{ env.ADOMD_LIB_DIR }}
+          ADOMD_LIB_PATH: ${{ env.ADOMD_LIB_PATH }}
         run: |
           echo "Running unit tests to verify environment..."
           python -m pytest tests/ -k "not test_integration" -v
