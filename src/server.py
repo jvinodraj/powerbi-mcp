@@ -65,8 +65,20 @@ load_dotenv()
 
 # Prepare ADOMD.NET search paths before importing pyadomd
 env_adomd = os.environ.get("ADOMD_LIB_DIR")
+
+# Try to use NuGet packages first (if available)
+user_nuget_path = os.path.expanduser(r"~\.nuget\packages")
+nuget_adomd_path = os.path.join(user_nuget_path, "microsoft.analysisservices.adomdclient.netcore.retail.amd64", "19.84.1", "lib", "netcoreapp3.0")
+nuget_config_path = os.path.join(user_nuget_path, "system.configuration.configurationmanager", "9.0.7", "lib", "net8.0")
+nuget_identity_path = os.path.join(user_nuget_path, "microsoft.identity.client", "4.74.0", "lib", "net8.0")
+nuget_identity_abs_path = os.path.join(user_nuget_path, "microsoft.identitymodel.abstractions", "6.35.0", "lib", "net6.0")
+
 adomd_paths = [
     env_adomd,
+    nuget_adomd_path if os.path.exists(nuget_adomd_path) else None,
+    nuget_config_path if os.path.exists(nuget_config_path) else None,
+    nuget_identity_path if os.path.exists(nuget_identity_path) else None,
+    nuget_identity_abs_path if os.path.exists(nuget_identity_abs_path) else None,
     r"C:\\Program Files\\Microsoft.NET\\ADOMD.NET\\160",
     r"C:\\Program Files\\Microsoft.NET\\ADOMD.NET\\150",
     r"C:\\Program Files (x86)\\Microsoft.NET\\ADOMD.NET\\160",
