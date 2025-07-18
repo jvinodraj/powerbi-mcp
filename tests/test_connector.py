@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 from server import PowerBIConnector, clean_dax_query
 
 
+@pytest.mark.unit
 class TestPowerBIConnector:
     """Test cases for PowerBIConnector"""
     
@@ -135,6 +136,7 @@ class TestPowerBIConnector:
         mock_cursor.execute.assert_called_once_with("EVALUATE Sales")
 
 
+@pytest.mark.unit
 class TestDAXCleaning:
     """Test cases for DAX query cleaning"""
     
@@ -171,6 +173,7 @@ class TestDAXCleaning:
         assert "<" in clean_query
 
 
+@pytest.mark.unit
 class TestErrorHandling:
     """Test error handling scenarios"""
     

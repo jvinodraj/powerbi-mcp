@@ -209,16 +209,75 @@ powerbi-mcp-server/
 
 ## 🧪 Testing
 
-Run the test suite:
+### Unit Tests
+
+Run the standard test suite:
 ```bash
 python -m pytest tests/
 ```
 
 Test specific functionality:
 ```bash
-python tests/test_connection.py
-python tests/test_dax_generation.py
+python tests/test_connector.py
+python tests/test_server_process.py
 ```
+
+### Integration Tests
+
+Real integration tests with Power BI datasets are available but disabled by default. These tests connect to actual Power BI services and may consume API quota.
+
+**Enable Integration Tests:**
+
+1. **Configure test environment**
+   ```bash
+   cp .env.example .env
+   # Edit .env file and set:
+   ENABLE_INTEGRATION_TESTS=true
+   ```
+
+2. **Set test dataset configuration**
+   ```env
+   # Test Power BI Dataset Configuration
+   TEST_XMLA_ENDPOINT=powerbi://api.powerbi.com/v1.0/myorg/YourTestWorkspace
+   TEST_TENANT_ID=your_tenant_id
+   TEST_CLIENT_ID=your_client_id  
+   TEST_CLIENT_SECRET=your_client_secret
+   TEST_INITIAL_CATALOG=YourTestDatasetName
+   
+   # Optional: Expected test data for validation
+   TEST_EXPECTED_TABLE=Sales
+   TEST_EXPECTED_COLUMN=Amount
+   TEST_DAX_QUERY=EVALUATE TOPN(1, Sales)
+   TEST_MIN_TABLES_COUNT=1
+   ```
+
+3. **Run integration tests**
+   ```bash
+   # Interactive runner with safety checks
+   python run_integration_tests.py
+   
+   # Or directly with pytest
+   python -m pytest tests/test_integration.py -v
+   
+   # Run with auto-confirmation (CI/CD)
+   python run_integration_tests.py --yes
+   ```
+
+**Integration Test Coverage:**
+- ✅ Power BI dataset connection
+- ✅ Table discovery and schema retrieval
+- ✅ DAX query execution
+- ✅ Sample data retrieval
+- ✅ MCP tool interface testing
+- ✅ Natural language query generation (with OpenAI)
+- ✅ AI-powered suggestions (with OpenAI)
+
+**⚠️ Warning:** Integration tests connect to real Power BI datasets and may consume:
+- XMLA endpoint usage quota
+- OpenAI API tokens
+- Network bandwidth
+
+Only run integration tests in dedicated test environments.
 
 ## 🤝 Contributing
 

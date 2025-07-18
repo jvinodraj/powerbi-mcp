@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from server import PowerBIMCPServer
 
+@pytest.mark.unit
 @pytest.mark.asyncio
 async def test_connect_without_openai(monkeypatch):
     server = PowerBIMCPServer()
@@ -42,6 +43,7 @@ async def test_connect_without_openai(monkeypatch):
     assert called is False
 
 
+@pytest.mark.unit
 @pytest.mark.asyncio
 async def test_list_tools_without_openai(monkeypatch):
     monkeypatch.delenv('OPENAI_API_KEY', raising=False)
@@ -53,6 +55,7 @@ async def test_list_tools_without_openai(monkeypatch):
     assert 'suggest_questions' not in tool_names
 
 
+@pytest.mark.unit
 @pytest.mark.asyncio
 async def test_call_query_data_without_openai(monkeypatch):
     monkeypatch.delenv('OPENAI_API_KEY', raising=False)
