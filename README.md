@@ -1,3 +1,5 @@
+[![Verified on MseeP](https://mseep.ai/badge.svg)](https://mseep.ai/app/18af69de-81ee-4f94-aba3-cde8699fa308)
+
 [![MseeP.ai Security Assessment Badge](https://mseep.net/pr/sulaiman013-powerbi-mcp-badge.png)](https://mseep.ai/app/sulaiman013-powerbi-mcp)
 
 # Power BI MCP Server 🚀
