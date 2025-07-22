@@ -111,7 +111,7 @@ class TestPowerBIConnector:
         assert "Product" in table_names
         assert "$SYSTEM_TABLE" not in table_names
         assert "DateTableTemplate_123" not in table_names
-        
+
         # Check that descriptions are included
         assert all("description" in table for table in tables)
         assert all(table["description"] == "No description available" for table in tables)

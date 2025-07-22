@@ -158,18 +158,42 @@ class TestPowerBIIntegration:
 
         assert expected_table in table_names, f"Expected table '{expected_table}' not found in tables: {table_names}"
 
+    def test_expected_table_has_description(self, connector, test_config):
+        """Test that expected test table has a real description (not fallback)."""
+        if not test_config["TEST_EXPECTED_TABLE"]:
+            pytest.skip("TEST_EXPECTED_TABLE not configured")
+
+        tables = connector.discover_tables()
+        expected_table = test_config["TEST_EXPECTED_TABLE"]
+
+        # Find the expected table
+        table_found = None
+        for table in tables:
+            if table["name"] == expected_table:
+                table_found = table
+                break
+
+        assert table_found is not None, f"Expected table '{expected_table}' not found"
+
+        # Check that it has a real description, not the fallback
+        assert (
+            table_found["description"] != "No description available"
+        ), f"Table '{expected_table}' should have a real description from the model"
+        assert len(table_found["description"]) > 0, f"Table '{expected_table}' description should not be empty"
+
     def test_get_table_schema(self, connector, test_config):
         """Test retrieving schema information for a table."""
         tables = connector.discover_tables()
         assert len(tables) > 0, "No tables found to test schema retrieval"
 
         # Test schema for first table
-        table_name = tables[0]
+        table_name = tables[0]["name"]  # Extract name from dictionary
         schema = connector.get_table_schema(table_name)
 
         assert isinstance(schema, dict), "Schema should be returned as dictionary"
         assert "table_name" in schema, "Schema should contain table_name"
         assert "type" in schema, "Schema should contain type"
+        assert "description" in schema, "Schema should contain description"
         assert schema["table_name"] == table_name
 
         if schema["type"] == "data_table":
@@ -179,6 +203,20 @@ class TestPowerBIIntegration:
         elif schema["type"] == "measure_table":
             assert "measures" in schema, "Measure table schema should contain measures"
             assert isinstance(schema["measures"], list), "Measures should be a list"
+
+    def test_expected_table_schema_has_description(self, connector, test_config):
+        """Test that get_table_schema() returns description for expected table."""
+        if not test_config["TEST_EXPECTED_TABLE"]:
+            pytest.skip("TEST_EXPECTED_TABLE not configured")
+
+        table_name = test_config["TEST_EXPECTED_TABLE"]
+        schema = connector.get_table_schema(table_name)
+
+        assert "description" in schema, "Schema should contain description field"
+        assert (
+            schema["description"] != "No description available"
+        ), f"Table '{table_name}' should have a real description in schema"
+        assert len(schema["description"]) > 0, f"Table '{table_name}' schema description should not be empty"
 
     def test_expected_column_exists(self, connector, test_config):
         """Test that expected column exists in the expected table."""
