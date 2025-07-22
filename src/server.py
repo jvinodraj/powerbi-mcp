@@ -226,8 +226,8 @@ class PowerBIConnector:
             logger.error(f"Connection failed: {str(e)}")
             raise Exception(f"Connection failed: {str(e)}")
 
-    def discover_tables(self) -> List[str]:
-        """Discover all user-facing tables in the dataset"""
+    def discover_tables(self) -> List[Dict[str, str]]:
+        """Discover all user-facing tables in the dataset with their descriptions"""
         if not self.connected:
             raise Exception("Not connected to Power BI")
 
@@ -253,7 +253,12 @@ class PowerBIConnector:
                             and not table_name.startswith("DateTableTemplate_")
                             and not row["TABLE_SCHEMA"] == "$SYSTEM"
                         ):
-                            tables_list.append(table_name)
+                            # Get table description from TMSCHEMA_TABLES
+                            table_description = self._get_table_description_direct(table_name)
+                            tables_list.append({
+                                "name": table_name,
+                                "description": table_description or "No description available"
+                            })
 
             self.tables = tables_list
             logger.info(f"Discovered {len(tables_list)} tables")
@@ -263,7 +268,7 @@ class PowerBIConnector:
             raise Exception(f"Failed to discover tables: {str(e)}")
 
     def get_table_schema(self, table_name: str) -> Dict[str, Any]:
-        """Get schema information for a specific table"""
+        """Get schema information for a specific table including description"""
         if not self.connected:
             raise Exception("Not connected to Power BI")
 
@@ -273,6 +278,9 @@ class PowerBIConnector:
             with Pyadomd(self.connection_string) as conn:
                 cursor = conn.cursor()
 
+                # Get table description
+                table_description = self._get_table_description_direct(table_name)
+
                 # Try to get column information
                 try:
                     dax_query = f"EVALUATE TOPN(1, '{table_name}')"
@@ -280,11 +288,39 @@ class PowerBIConnector:
                     columns = [desc[0] for desc in cursor.description]
                     cursor.close()
 
-                    return {"table_name": table_name, "type": "data_table", "columns": columns}
+                    return {
+                        "table_name": table_name,
+                        "type": "data_table",
+                        "description": table_description or "No description available",
+                        "columns": columns
+                    }
                 except:
                     # This might be a measure table
                     cursor.close()
-                    return self.get_measures_for_table(table_name)
+                    measure_info = self.get_measures_for_table(table_name)
+                    measure_info["description"] = table_description or "No description available"
+                    return measure_info
+
+        except Exception as e:
+            logger.error(f"Failed to get schema for table '{table_name}': {str(e)}")
+            raise Exception(f"Failed to get schema for table '{table_name}': {str(e)}")
+
+    def _get_table_description_direct(self, table_name: str) -> Optional[str]:
+        """Get table description using direct Pyadomd connection"""
+        try:
+            with Pyadomd(self.connection_string) as conn:
+                cursor = conn.cursor()
+                desc_query = f"SELECT [Description] FROM $SYSTEM.TMSCHEMA_TABLES WHERE [Name] = '{table_name}'"
+                cursor.execute(desc_query)
+                result = cursor.fetchone()
+                cursor.close()
+                
+                if result and result[0]:
+                    return str(result[0])
+                return None
+        except Exception as e:
+            logger.debug(f"Failed to get description for table '{table_name}': {str(e)}")
+            return None
 
         except Exception as e:
             logger.error(f"Failed to get schema for table '{table_name}': {str(e)}")
@@ -668,30 +704,33 @@ class PowerBIMCPServer:
             sample_data = {}
 
             # Get schemas for first 5 tables only to speed up
-            for table in tables[:5]:
+            for table_info in tables[:5]:
+                table_name = table_info["name"]
                 try:
                     schema = await asyncio.get_event_loop().run_in_executor(
-                        None, self.connector.get_table_schema, table
+                        None, self.connector.get_table_schema, table_name
                     )
-                    schemas[table] = schema
+                    schemas[table_name] = schema
 
                     if schema["type"] == "data_table":
                         samples = await asyncio.get_event_loop().run_in_executor(
-                            None, self.connector.get_sample_data, table, 3
+                            None, self.connector.get_sample_data, table_name, 3
                         )
-                        sample_data[table] = samples
+                        sample_data[table_name] = samples
                 except Exception as e:
-                    logger.warning(f"Failed to get schema for table {table}: {e}")
+                    logger.warning(f"Failed to get schema for table {table_name}: {e}")
 
             if self.analyzer:
-                self.analyzer.set_data_context(tables, schemas, sample_data)
+                # Extract table names for the analyzer
+                table_names = [table_info["name"] for table_info in tables]
+                self.analyzer.set_data_context(table_names, schemas, sample_data)
                 logger.info(f"Context prepared with {len(tables)} tables")
 
         except Exception as e:
             logger.error(f"Failed to prepare context: {e}")
 
     async def _handle_list_tables(self) -> str:
-        """List all available tables"""
+        """List all available tables with descriptions"""
         if not self.is_connected:
             return "Not connected to Power BI. Please connect first using 'connect_powerbi'."
 
@@ -701,7 +740,7 @@ class PowerBIMCPServer:
             if not tables:
                 return "No tables found in the dataset."
 
-            table_list = "\n".join([f"- {table}" for table in tables])
+            table_list = "\n".join([f"- {table['name']}: {table['description']}" for table in tables])
             return f"Available tables:\n{table_list}"
         except Exception as e:
             logger.error(f"Failed to list tables: {e}")
@@ -724,15 +763,27 @@ class PowerBIMCPServer:
                     None, self.connector.get_sample_data, table_name, 5
                 )
                 result = (
-                    f"Table: {table_name}\nType: Data Table\nColumns: {', '.join(schema['columns'])}\n\nSample data:\n"
+                    f"Table: {table_name}\n"
+                    f"Type: Data Table\n"
+                    f"Description: {schema.get('description', 'No description available')}\n"
+                    f"Columns: {', '.join(schema['columns'])}\n\nSample data:\n"
                 )
                 result += safe_json_dumps(sample_data, indent=2)
             elif schema["type"] == "measure_table":
-                result = f"Table: {table_name}\nType: Measure Table\nMeasures:\n"
+                result = (
+                    f"Table: {table_name}\n"
+                    f"Type: Measure Table\n"
+                    f"Description: {schema.get('description', 'No description available')}\n"
+                    f"Measures:\n"
+                )
                 for measure in schema["measures"]:
                     result += f"\n- {measure['name']}:\n  DAX: {measure['dax']}\n"
             else:
-                result = f"Table: {table_name}\nType: {schema['type']}"
+                result = (
+                    f"Table: {table_name}\n"
+                    f"Type: {schema['type']}\n"
+                    f"Description: {schema.get('description', 'No description available')}"
+                )
 
             return result
 

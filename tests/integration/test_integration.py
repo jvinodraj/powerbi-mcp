@@ -138,11 +138,14 @@ class TestPowerBIIntegration:
             len(tables) >= test_config["TEST_MIN_TABLES_COUNT"]
         ), f"Expected at least {test_config['TEST_MIN_TABLES_COUNT']} tables"
 
-        # Check that table names are strings and not empty
+        # Check that tables are dictionaries with name and description
         for table in tables:
-            assert isinstance(table, str), f"Table name should be string, got {type(table)}"
-            assert len(table) > 0, "Table name should not be empty"
-            assert not table.startswith("$"), "System tables should be filtered out"
+            assert isinstance(table, dict), f"Table should be dict, got {type(table)}"
+            assert "name" in table, "Table should have 'name' field"
+            assert "description" in table, "Table should have 'description' field"
+            assert isinstance(table["name"], str), f"Table name should be string, got {type(table['name'])}"
+            assert len(table["name"]) > 0, "Table name should not be empty"
+            assert not table["name"].startswith("$"), "System tables should be filtered out"
 
     def test_expected_table_exists(self, connector, test_config):
         """Test that expected test table exists in the dataset."""
@@ -151,8 +154,9 @@ class TestPowerBIIntegration:
 
         tables = connector.discover_tables()
         expected_table = test_config["TEST_EXPECTED_TABLE"]
+        table_names = [table["name"] for table in tables]
 
-        assert expected_table in tables, f"Expected table '{expected_table}' not found in tables: {tables}"
+        assert expected_table in table_names, f"Expected table '{expected_table}' not found in tables: {table_names}"
 
     def test_get_table_schema(self, connector, test_config):
         """Test retrieving schema information for a table."""
@@ -199,10 +203,11 @@ class TestPowerBIIntegration:
 
         # Find a data table to query
         data_table = None
-        for table in tables:
-            schema = connector.get_table_schema(table)
+        for table_info in tables:
+            table_name = table_info["name"]
+            schema = connector.get_table_schema(table_name)
             if schema["type"] == "data_table":
-                data_table = table
+                data_table = table_name
                 break
 
         if not data_table:
@@ -236,10 +241,11 @@ class TestPowerBIIntegration:
 
         # Find a data table
         data_table = None
-        for table in tables:
-            schema = connector.get_table_schema(table)
+        for table_info in tables:
+            table_name = table_info["name"]
+            schema = connector.get_table_schema(table_name)
             if schema["type"] == "data_table":
-                data_table = table
+                data_table = table_name
                 break
 
         if not data_table:
@@ -310,19 +316,22 @@ class TestDataAnalyzerIntegration:
         sample_data = {}
 
         # Get schemas for first few tables
-        for table in tables[:3]:
+        for table_info in tables[:3]:
+            table_name = table_info["name"]
             try:
-                schema = connector.get_table_schema(table)
-                schemas[table] = schema
+                schema = connector.get_table_schema(table_name)
+                schemas[table_name] = schema
 
                 if schema["type"] == "data_table":
-                    samples = connector.get_sample_data(table, 2)
-                    sample_data[table] = samples
+                    samples = connector.get_sample_data(table_name, 2)
+                    sample_data[table_name] = samples
             except Exception:
                 # Skip tables that can't be processed
                 continue
 
-        analyzer.set_data_context(tables, schemas, sample_data)
+        # Extract table names for the analyzer
+        table_names = [table_info["name"] for table_info in tables]
+        analyzer.set_data_context(table_names, schemas, sample_data)
 
         return analyzer
 

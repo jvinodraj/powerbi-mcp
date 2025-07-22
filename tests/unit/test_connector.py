@@ -98,15 +98,23 @@ class TestPowerBIConnector:
         mock_conn.conn.GetSchemaDataSet.return_value = mock_dataset
         mock_pyadomd.return_value.__enter__.return_value = mock_conn
 
+        # Mock the table description method to return None (no description)
+        connector._get_table_description_direct = Mock(return_value=None)
+
         # Act
         tables = connector.discover_tables()
 
         # Assert
         assert len(tables) == 2
-        assert "Sales" in tables
-        assert "Product" in tables
-        assert "$SYSTEM_TABLE" not in tables
-        assert "DateTableTemplate_123" not in tables
+        table_names = [table["name"] for table in tables]
+        assert "Sales" in table_names
+        assert "Product" in table_names
+        assert "$SYSTEM_TABLE" not in table_names
+        assert "DateTableTemplate_123" not in table_names
+        
+        # Check that descriptions are included
+        assert all("description" in table for table in tables)
+        assert all(table["description"] == "No description available" for table in tables)
 
     def test_execute_dax_query(self, connector, mock_pyadomd):
         """Test DAX query execution"""
