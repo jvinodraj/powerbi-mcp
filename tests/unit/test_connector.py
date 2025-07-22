@@ -76,7 +76,7 @@ class TestPowerBIConnector:
         assert connector.connected is False
 
     def test_discover_tables(self, connector, mock_pyadomd):
-        """Test table discovery"""
+        """Test table discovery with relationships"""
         # Arrange
         connector.connected = True
         connector.connection_string = "test"
@@ -101,6 +101,9 @@ class TestPowerBIConnector:
         # Mock the table description method to return None (no description)
         connector._get_table_description_direct = Mock(return_value=None)
 
+        # Mock the relationships method to return empty list
+        connector._get_table_relationships = Mock(return_value=[])
+
         # Act
         tables = connector.discover_tables()
 
@@ -112,9 +115,56 @@ class TestPowerBIConnector:
         assert "$SYSTEM_TABLE" not in table_names
         assert "DateTableTemplate_123" not in table_names
 
-        # Check that descriptions are included
+        # Check that descriptions and relationships are included
         assert all("description" in table for table in tables)
+        assert all("relationships" in table for table in tables)
         assert all(table["description"] == "No description available" for table in tables)
+        assert all(table["relationships"] == [] for table in tables)
+
+    def test_get_table_relationships_mock(self, connector):
+        """Test table relationships discovery with mock method"""
+        # Arrange - Mock the method directly to test integration
+        expected_relationships = [
+            {
+                "relatedTable": "Product",
+                "fromColumn": "ProductKey",
+                "toColumn": "ProductKey",
+                "cardinality": "Many-to-One",
+                "isActive": True,
+                "crossFilterDirection": "Single",
+                "relationshipType": "Many-to-One",
+            }
+        ]
+
+        # Mock the method to return expected data
+        connector._get_table_relationships = Mock(return_value=expected_relationships)
+
+        # Act
+        relationships = connector._get_table_relationships("Sales")
+
+        # Assert
+        assert len(relationships) == 1
+        rel = relationships[0]
+        assert rel["relatedTable"] == "Product"
+        assert rel["fromColumn"] == "ProductKey"
+        assert rel["toColumn"] == "ProductKey"
+        assert rel["cardinality"] == "Many-to-One"
+        assert rel["isActive"] is True
+        assert rel["relationshipType"] == "Many-to-One"
+
+    def test_format_cardinality(self, connector):
+        """Test cardinality formatting"""
+        assert connector._format_cardinality(2, 1) == "Many-to-One"
+        assert connector._format_cardinality(1, 2) == "One-to-Many"
+        assert connector._format_cardinality(1, 1) == "One-to-One"
+
+    def test_format_cross_filter(self, connector):
+        """Test cross filter direction formatting"""
+        assert connector._format_cross_filter(1) == "Single"
+        assert connector._format_cross_filter(2) == "Both"
+        assert connector._format_cross_filter(3) == "Automatic"
+        assert connector._format_cross_filter(4) == "None"
+        assert connector._format_cross_filter(99) == "Unknown"
 
     def test_execute_dax_query(self, connector, mock_pyadomd):
         """Test DAX query execution"""

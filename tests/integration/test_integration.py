@@ -472,8 +472,12 @@ class TestMCPServerIntegration:
 
         assert isinstance(result, str), "Tables list result should be a string"
         assert (
-            "Available tables:" in result or "No tables found" in result
+            "Available tables with relationships:" in result or "No tables found" in result
         ), f"Result should contain tables information: {result}"
+
+        # If tables are found, check that relationships info is included
+        if "Available tables with relationships:" in result:
+            assert "Relationships (" in result, "Result should include relationships information"
 
     @pytest.mark.asyncio
     async def test_get_table_info_tool(self, mcp_server, test_config):
