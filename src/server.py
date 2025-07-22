@@ -310,13 +310,35 @@ class PowerBIConnector:
         try:
             with Pyadomd(self.connection_string) as conn:
                 cursor = conn.cursor()
+                # Try different approaches to get table description
+                
+                # First try: Direct query
                 desc_query = f"SELECT [Description] FROM $SYSTEM.TMSCHEMA_TABLES WHERE [Name] = '{table_name}'"
+                logger.debug(f"Trying query: {desc_query}")
                 cursor.execute(desc_query)
-                result = cursor.fetchone()
+                results = cursor.fetchall()  # Use fetchall instead of fetchone
                 cursor.close()
                 
-                if result and result[0]:
-                    return str(result[0])
+                if results and len(results) > 0:
+                    result = results[0]
+                    if result and len(result) > 0 and result[0]:
+                        logger.debug(f"Found description for {table_name}: {result[0]}")
+                        return str(result[0])
+                    else:
+                        logger.debug(f"Description is empty for table {table_name}")
+                else:
+                    logger.debug(f"No results found for table {table_name}")
+                    
+                # Second try: Show all columns to understand the schema
+                cursor = conn.cursor()
+                debug_query = "SELECT TOP 5 [Name], [Description] FROM $SYSTEM.TMSCHEMA_TABLES"
+                logger.debug(f"Debug query: {debug_query}")
+                cursor.execute(debug_query)
+                debug_results = cursor.fetchall()
+                cursor.close()
+                
+                logger.debug(f"Debug results from TMSCHEMA_TABLES: {debug_results}")
+                
                 return None
         except Exception as e:
             logger.debug(f"Failed to get description for table '{table_name}': {str(e)}")
