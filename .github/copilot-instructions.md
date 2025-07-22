@@ -33,6 +33,12 @@ When modifying code in this repository:
 - **Improves accuracy and efficiency** over time
 - **Creates a self-improving system** based on real user feedback
 
+### **Learning from 2025-07-22: Always Test Integration Before Code Formatting**
+- **Issue:** Attempted to run code formatting checks before verifying that new functionality actually works with integration tests
+- **Correction:** User correctly pointed out that integration tests must be run first to verify functionality works in real environment before worrying about code formatting
+- **Application:** Always follow the proper order: 1) Implement functionality, 2) Run unit tests first, 3) Run integration tests to verify it works in real environment, 4) Only then proceed with code formatting and quality checks
+- **Critical Principle:** Real functionality verification comes before cosmetic code quality - never format code that doesn't work!
+
 ## Environment Consistency Requirements
 
 This repository supports three distinct environments that must be kept consistent:
