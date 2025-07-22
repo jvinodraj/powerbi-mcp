@@ -2,6 +2,37 @@
 
 When modifying code in this repository:
 
+## Learning and Knowledge Base Requirements
+
+### **MANDATORY: Record All Corrections and Feedback**
+**🧠 CRITICAL: Every time a user or operator corrects you, provides feedback, or teaches you something new, you MUST update these instructions to capture that knowledge.**
+
+**Learning Process:**
+1. **When corrected:** Immediately add the correction to the relevant section of these instructions
+2. **When receiving feedback:** Update instructions with the new best practices or requirements
+3. **When discovering new patterns:** Document them for future reference
+4. **When making mistakes:** Add prevention guidelines to avoid repeating the same errors
+
+**Knowledge Base Sections to Update:**
+- **Technical Corrections:** Add to relevant technical sections (Environment Setup, Code Quality, Testing)
+- **Process Improvements:** Add to workflow and validation sections
+- **Domain-Specific Knowledge:** Create new sections for Power BI, ADOMD.NET, or MCP-specific learnings
+- **Common Pitfalls:** Document mistakes and how to avoid them
+
+**Example Update Format:**
+```markdown
+### **Learning from [Date]: [Brief Description]**
+- **Issue:** What was wrong or needed improvement
+- **Correction:** What the user/operator taught you
+- **Application:** How to apply this knowledge in future work
+```
+
+**Why This Matters:**
+- **Builds institutional knowledge** that persists across conversations
+- **Prevents repeating the same mistakes** 
+- **Improves accuracy and efficiency** over time
+- **Creates a self-improving system** based on real user feedback
+
 ## Environment Consistency Requirements
 
 This repository supports three distinct environments that must be kept consistent:
