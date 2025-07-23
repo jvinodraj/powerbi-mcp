@@ -218,6 +218,52 @@ class TestPowerBIIntegration:
         ), f"Table '{table_name}' should have a real description in schema"
         assert len(schema["description"]) > 0, f"Table '{table_name}' schema description should not be empty"
 
+    def test_table_schema_has_column_descriptions(self, connector, test_config):
+        """Test that get_table_schema() returns enhanced columns with descriptions."""
+        if not test_config["TEST_EXPECTED_TABLE"]:
+            pytest.skip("TEST_EXPECTED_TABLE not configured")
+
+        table_name = test_config["TEST_EXPECTED_TABLE"]
+        schema = connector.get_table_schema(table_name)
+
+        assert "columns" in schema, "Schema should contain columns field"
+        assert len(schema["columns"]) > 0, "Schema should have at least one column"
+
+        # Check that columns are enhanced with descriptions
+        for column in schema["columns"]:
+            if isinstance(column, dict):
+                # Enhanced column format with description
+                assert "name" in column, "Enhanced column should have 'name' field"
+                assert "description" in column, "Enhanced column should have 'description' field"
+                assert "data_type" in column, "Enhanced column should have 'data_type' field"
+                assert isinstance(column["name"], str), "Column name should be string"
+                assert isinstance(column["description"], str), "Column description should be string"
+                # At least some columns should have real descriptions (not the fallback)
+            else:
+                # Old string format - should not happen with new implementation
+                pytest.fail(f"Column format should be enhanced dict, got string: {column}")
+
+    def test_some_columns_have_real_descriptions(self, connector, test_config):
+        """Test that at least some columns have real descriptions from the model."""
+        if not test_config["TEST_EXPECTED_TABLE"]:
+            pytest.skip("TEST_EXPECTED_TABLE not configured")
+
+        table_name = test_config["TEST_EXPECTED_TABLE"]
+        schema = connector.get_table_schema(table_name)
+
+        columns_with_descriptions = [
+            col for col in schema["columns"] 
+            if col.get("description") and col["description"] != "No description available"
+        ]
+
+        # At least one column should have a real description
+        assert len(columns_with_descriptions) > 0, f"Table '{table_name}' should have at least one column with a real description"
+
+        # Check that descriptions are meaningful (more than just the column name)
+        for col in columns_with_descriptions:
+            description = col["description"]
+            assert len(description) > 10, f"Column '{col['name']}' description should be meaningful: {description}"
+
     def test_expected_column_exists(self, connector, test_config):
         """Test that expected column exists in the expected table."""
         if not test_config["TEST_EXPECTED_TABLE"] or not test_config["TEST_EXPECTED_COLUMN"]:
@@ -230,9 +276,11 @@ class TestPowerBIIntegration:
 
         if schema["type"] == "data_table":
             columns = schema.get("columns", [])
+            # Extract column names from enhanced column dictionaries
+            column_names = [col["name"] if isinstance(col, dict) else col for col in columns]
             assert (
-                expected_column in columns
-            ), f"Expected column '{expected_column}' not found in table '{table_name}'. Available columns: {columns}"
+                expected_column in column_names
+            ), f"Expected column '{expected_column}' not found in table '{table_name}'. Available columns: {column_names}"
 
     def test_execute_simple_dax_query(self, connector):
         """Test executing a simple DAX query."""

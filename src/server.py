@@ -275,7 +275,7 @@ class PowerBIConnector:
             raise Exception(f"Failed to discover tables: {str(e)}")
 
     def get_table_schema(self, table_name: str) -> Dict[str, Any]:
-        """Get schema information for a specific table including description"""
+        """Get schema information for a specific table including description and column descriptions"""
         if not self.connected:
             raise Exception("Not connected to Power BI")
 
@@ -295,11 +295,50 @@ class PowerBIConnector:
                     columns = [desc[0] for desc in cursor.description]
                     cursor.close()
 
+                    # Get column descriptions from TMSCHEMA_COLUMNS
+                    column_descriptions = self._get_column_descriptions(table_name)
+
+                    # Create enhanced columns list with descriptions
+                    enhanced_columns = []
+                    for col_name in columns:
+                        # Find description for this column
+                        col_description = None
+                        col_data_type = None
+
+                        # Try exact match first
+                        for col_info in column_descriptions:
+                            if col_info["name"] == col_name:
+                                col_description = col_info["description"]
+                                col_data_type = col_info["data_type"]
+                                break
+
+                        # If no exact match, try partial match (remove table prefix if present)
+                        if not col_description:
+                            # Extract column name from format like "Employee Skills[Id]" -> "Id"
+                            if '[' in col_name and ']' in col_name:
+                                clean_col_name = col_name.split('[')[1].replace(']', '')
+                            else:
+                                clean_col_name = col_name
+
+                            for col_info in column_descriptions:
+                                if col_info["name"] == clean_col_name:
+                                    col_description = col_info["description"]
+                                    col_data_type = col_info["data_type"]
+                                    logger.debug(f"Matched column '{col_name}' with '{clean_col_name}'")
+                                    break
+
+                        # Create enhanced column info
+                        enhanced_columns.append({
+                            "name": col_name,
+                            "description": col_description or "No description available",
+                            "data_type": col_data_type
+                        })
+
                     return {
                         "table_name": table_name,
                         "type": "data_table",
                         "description": table_description or "No description available",
-                        "columns": columns,
+                        "columns": enhanced_columns,
                     }
                 except:
                     # This might be a measure table
@@ -531,6 +570,71 @@ class PowerBIConnector:
             logger.warning(f"Failed to get relationships for table '{table_name}': {str(e)}")
             import traceback
 
+            logger.debug(f"Traceback: {traceback.format_exc()}")
+            return []
+
+    def _get_column_descriptions(self, table_name: str) -> List[Dict[str, Any]]:
+        """Get column descriptions for a specific table"""
+        try:
+            with Pyadomd(self.connection_string) as conn:
+                # First get the table ID
+                cursor = conn.cursor()
+                table_id_query = f"SELECT [ID] FROM $SYSTEM.TMSCHEMA_TABLES WHERE [Name] = '{table_name}'"
+                logger.debug(f"Table ID query for column descriptions: {table_id_query}")
+                cursor.execute(table_id_query)
+                table_id_result = cursor.fetchone()
+
+                if not table_id_result:
+                    cursor.close()
+                    logger.debug(f"Table ID not found for {table_name}")
+                    return []
+
+                # Extract table ID from generator and tuple
+                table_id_tuple = list(table_id_result)[0]  # Get first tuple from generator
+                table_id = table_id_tuple[0]  # Get the integer from the tuple
+                cursor.close()
+                logger.debug(f"Found table ID: {table_id} for column descriptions")
+
+                # Get column descriptions from TMSCHEMA_COLUMNS
+                cursor = conn.cursor()
+                columns_query = f"""
+                SELECT 
+                    [ExplicitName] as ColumnName,
+                    [Description] as ColumnDescription,
+                    [ExplicitDataType] as DataType
+                FROM $SYSTEM.TMSCHEMA_COLUMNS 
+                WHERE [TableID] = {table_id}
+                ORDER BY [ExplicitName]
+                """
+                logger.debug(f"Columns query: {columns_query}")
+                cursor.execute(columns_query)
+                columns_results = cursor.fetchall()
+                cursor.close()
+
+                logger.debug(f"Found {len(columns_results)} columns with metadata")
+
+                # Process results
+                column_descriptions = []
+                for col_result in columns_results:
+                    col_name = col_result[0] if col_result[0] else "Unknown"
+                    col_description = col_result[1] if len(col_result) > 1 and col_result[1] else None
+                    col_data_type = col_result[2] if len(col_result) > 2 else None
+
+                    column_descriptions.append({
+                        "name": col_name,
+                        "description": col_description,
+                        "data_type": col_data_type
+                    })
+
+                    # Debug output
+                    desc_text = col_description if col_description else "No description"
+                    logger.debug(f"Column {col_name} ({col_data_type}): {desc_text}")
+
+                return column_descriptions
+
+        except Exception as e:
+            logger.warning(f"Failed to get column descriptions for table '{table_name}': {str(e)}")
+            import traceback
             logger.debug(f"Traceback: {traceback.format_exc()}")
             return []
 

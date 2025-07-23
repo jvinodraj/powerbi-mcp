@@ -311,5 +311,116 @@ class TestPyadomdUnavailable:
         assert "Pyadomd library not available" in str(exc_info.value)
 
 
+@pytest.mark.unit
+@patch("server.Pyadomd")
+class TestColumnDescriptions:
+    """Test column descriptions functionality"""
+
+    def test_get_column_descriptions_mock(self, mock_pyadomd):
+        """Test column descriptions retrieval with mocked data"""
+        # Setup connector
+        connector = PowerBIConnector()
+        connector.connected = True
+        connector.connection_string = "test_connection"
+
+        # Mock the connection and queries
+        mock_conn = MagicMock()
+        mock_pyadomd.return_value.__enter__.return_value = mock_conn
+
+        # Mock cursor for table ID query
+        mock_cursor1 = MagicMock()
+        mock_cursor1.fetchone.return_value = iter([(15,)])  # Table ID generator with tuple
+        mock_cursor1.close = MagicMock()
+
+        # Mock cursor for columns query  
+        mock_cursor2 = MagicMock()
+        mock_cursor2.fetchall.return_value = [
+            ("Id", "Primary key identifier", 6),
+            ("Name", "Display name of the entity", 2), 
+            ("Value", None, 6),  # Column without description
+        ]
+        mock_cursor2.close = MagicMock()
+
+        # Setup conn.cursor() to return different cursors for different calls
+        mock_conn.cursor.side_effect = [mock_cursor1, mock_cursor2]
+
+        # Execute the method
+        result = connector._get_column_descriptions("TestTable")
+
+        # Verify results
+        assert len(result) == 3
+        assert result[0]["name"] == "Id"
+        assert result[0]["description"] == "Primary key identifier"
+        assert result[0]["data_type"] == 6
+        
+        assert result[1]["name"] == "Name"
+        assert result[1]["description"] == "Display name of the entity"
+        assert result[1]["data_type"] == 2
+        
+        assert result[2]["name"] == "Value"
+        assert result[2]["description"] is None  # No description
+        assert result[2]["data_type"] == 6
+
+        # Verify method calls
+        assert mock_conn.cursor.call_count == 2
+        mock_cursor1.execute.assert_called_once()
+        mock_cursor2.execute.assert_called_once()
+        mock_cursor1.close.assert_called_once()
+        mock_cursor2.close.assert_called_once()
+
+    def test_get_table_schema_with_column_descriptions(self, mock_pyadomd):
+        """Test enhanced get_table_schema with column descriptions"""
+        # Setup connector
+        connector = PowerBIConnector()
+        connector.connected = True
+        connector.connection_string = "test_connection"
+
+        # Mock the connection
+        mock_conn = MagicMock()
+        mock_pyadomd.return_value.__enter__.return_value = mock_conn
+
+        # The get_table_schema method makes multiple calls with different cursors
+        # 1. _get_table_description_direct (which creates its own connection)
+        # 2. DAX query for column names  
+        # 3. _get_column_descriptions (which creates its own connection)
+
+        # For the main DAX query cursor (used for column names)
+        mock_main_cursor = MagicMock()
+        mock_main_cursor.description = [("TestTable[Id]",), ("TestTable[Name]",)]
+        mock_main_cursor.close = MagicMock()
+
+        # Setup main connection cursor
+        mock_conn.cursor.return_value = mock_main_cursor
+
+        # Mock the helper methods directly since they create their own connections
+        connector._get_table_description_direct = Mock(return_value="Test table description")
+        connector._get_column_descriptions = Mock(return_value=[
+            {"name": "Id", "description": "Primary key", "data_type": 6},
+            {"name": "Name", "description": "Entity name", "data_type": 2},
+        ])
+
+        # Execute
+        result = connector.get_table_schema("TestTable")
+
+        # Verify results
+        assert result["table_name"] == "TestTable" 
+        assert result["type"] == "data_table"
+        assert result["description"] == "Test table description"
+        assert len(result["columns"]) == 2
+        
+        # Check enhanced column structure
+        assert result["columns"][0]["name"] == "TestTable[Id]"
+        assert result["columns"][0]["description"] == "Primary key"
+        assert result["columns"][0]["data_type"] == 6
+        
+        assert result["columns"][1]["name"] == "TestTable[Name]"
+        assert result["columns"][1]["description"] == "Entity name"
+        assert result["columns"][1]["data_type"] == 2
+
+        # Verify method calls
+        connector._get_table_description_direct.assert_called_once_with("TestTable")
+        connector._get_column_descriptions.assert_called_once_with("TestTable")
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

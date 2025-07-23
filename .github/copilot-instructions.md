@@ -2,6 +2,37 @@
 
 When modifying code in this repository:
 
+## Development Workflow Requirements
+
+### **MANDATORY: Development-First Approach**
+**🔬 CRITICAL: Always develop and test new functionality on live datasets using development files before modifying the main server code.**
+
+**Development Process:**
+1. **Create Development File:** Create a separate `.py` development file (e.g., `dev_column_descriptions.py`)
+2. **Test on Live Dataset:** Develop and test functionality using real Power BI connection and live data
+3. **Verify Functionality:** Ensure the solution works correctly with actual data from the test dataset
+4. **Only Then Integrate:** Once proven to work, integrate the functionality into the main server files
+5. **Run Full Test Suite:** After integration, run complete test validation
+
+**Why This Matters:**
+- **Prevents Breaking Changes:** Avoid introducing non-functional code to the main server
+- **Real-World Testing:** Test against actual Power BI datasets, not just mocked data
+- **Faster Iteration:** Debug and refine logic in isolation before complex integration
+- **Confidence:** Ensure functionality works before modifying production code
+
+**Example Development Pattern:**
+```bash
+# 1. Create development file
+touch dev_new_feature.py
+
+# 2. Develop and test with live data
+python dev_new_feature.py
+
+# 3. Once working, integrate into server.py
+# 4. Run full test suite
+pytest -v
+```
+
 ## Learning and Knowledge Base Requirements
 
 ### **MANDATORY: Record All Corrections and Feedback**
