@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 from server import PowerBIConnector, clean_dax_query
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def mock_pyadomd():
     """Mock pyadomd for testing"""
     with patch("server.Pyadomd") as mock:
