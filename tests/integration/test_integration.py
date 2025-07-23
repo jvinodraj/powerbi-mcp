@@ -300,7 +300,7 @@ class TestPowerBIIntegration:
                 break
 
         if not data_table:
-            pytest.skip("No data tables found for DAX query testing")
+            assert False, "Test dataset should have at least one data table for DAX query testing. Check test configuration."
 
         # Execute simple query
         dax_query = f"EVALUATE TOPN(1, '{data_table}')"
@@ -338,7 +338,7 @@ class TestPowerBIIntegration:
                 break
 
         if not data_table:
-            pytest.skip("No data tables found for sample data testing")
+            assert False, "Test dataset should have at least one data table for sample data testing. Check test configuration."
 
         sample_data = connector.get_sample_data(data_table, num_rows=3)
 
@@ -545,19 +545,20 @@ class TestMCPServerIntegration:
 
         # Get first available table
         tables_result = await mcp_server._handle_list_tables()
-        if "No tables found" in tables_result:
-            pytest.skip("No tables available for testing table info")
+        assert "No tables found" not in tables_result, "Test dataset should have tables available"
 
-        # Extract first table name (this is a simple extraction, could be improved)
+        # Extract first table name (parse new format: "📊 **Table Name**")
         lines = tables_result.split("\n")
         table_name = None
         for line in lines:
-            if line.strip().startswith("- "):
-                table_name = line.strip()[2:]
+            line = line.strip()
+            if line.startswith("📊 **") and line.endswith("**"):
+                # Extract table name from format: "📊 **Table Name**"
+                table_name = line[5:-2]  # Remove "📊 **" from start and "**" from end
                 break
 
-        if not table_name:
-            pytest.skip("Could not extract table name from tables list")
+        assert table_name is not None, f"Could not extract table name from tables list. Format may have changed. Raw output:\n{tables_result}"
+        assert len(table_name.strip()) > 0, f"Extracted table name is empty. Raw output:\n{tables_result}"
 
         # Test getting table info
         arguments = {"table_name": table_name}

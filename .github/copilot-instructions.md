@@ -70,6 +70,62 @@ pytest -v
 - **Application:** Always follow the proper order: 1) Implement functionality, 2) Run unit tests first, 3) Run integration tests to verify it works in real environment, 4) Only then proceed with code formatting and quality checks
 - **Critical Principle:** Real functionality verification comes before cosmetic code quality - never format code that doesn't work!
 
+### **Learning from 2025-07-23: Critical Testing Regression Bug Prevention**
+- **Issue:** Enhanced column descriptions functionality caused runtime error "sequence item 0: expected str instance, dict found" in production, but tests did not catch this critical bug
+- **Root Cause Analysis:**
+  1. **Data Structure Change:** Updated `schema['columns']` from list of strings to list of dictionaries with {name, description, data_type}
+  2. **Incompatible Code:** `_handle_get_table_info()` still used `', '.join(schema['columns'])` expecting strings, not dicts
+  3. **Test Gap:** Integration test `test_get_table_info_tool` was skipped due to table name parsing failure
+  4. **No Unit Coverage:** No unit test specifically covered `_handle_get_table_info()` with enhanced column format
+- **Prevention Strategy:**
+  1. **MANDATORY: Add regression prevention tests** for all data structure changes
+  2. **MANDATORY: Verify integration tests actually run** - never allow critical tests to be skipped
+  3. **MANDATORY: Test format compatibility** when changing data structures
+  4. **MANDATORY: Unit test critical user-facing methods** like `_handle_get_table_info()`
+- **Application Rules:**
+  1. **Before changing data formats:** Add tests that would catch incompatible usage
+  2. **Never ignore skipped tests:** If integration tests skip, investigate and fix the reason
+  3. **Test critical paths:** Methods called by external agents/users must have robust unit tests
+  4. **Validate with real scenarios:** Use actual table names and data structures in tests
+
+### **Learning from 2025-07-23: Test Parser Brittleness Prevention**
+- **Issue:** Integration test parser expected old format `"- TableName"` but implementation changed to `"📊 **TableName**"` causing test to skip
+- **Correction:** Test parsers must be robust and updated when output formats change
+- **Application:** 
+  1. **Update test parsers when changing output formats**
+  2. **Make parsers more flexible** to handle format variations
+  3. **Never allow critical tests to skip** without investigation
+  4. **Test output format changes** in both unit and integration tests
+
+### **Learning from 2025-07-23: Tests Should Never Skip Due to Implementation Problems**
+- **Issue:** Tests were skipping when they couldn't parse output or find expected data, hiding real problems in code or test configuration
+- **Correction:** User emphasized that tests should either pass or fail, never skip due to implementation issues
+- **Root Cause:** Using `pytest.skip()` for parsing failures, missing data, or configuration problems masks real issues that should cause test failures
+- **Application Rules:**
+  1. **Only skip tests for missing external dependencies** (e.g., OpenAI API key, environment variables)
+  2. **Never skip for parsing failures** - if parser can't parse output, the output format is wrong or parser needs fixing
+  3. **Never skip for missing test data** - if test dataset doesn't have expected tables/columns, fix the test configuration
+  4. **Use assert statements instead of skip** for implementation validation
+  5. **Test failures should reveal problems** - don't hide them with skips
+- **Examples of BAD skipping:**
+  ```python
+  # BAD: Hides parser/format problems
+  if not table_name:
+      pytest.skip("Could not extract table name")
+      
+  # BAD: Hides test configuration problems  
+  if not data_tables:
+      pytest.skip("No data tables found")
+  ```
+- **Examples of GOOD failure reporting:**
+  ```python
+  # GOOD: Reveals parser/format problems
+  assert table_name is not None, f"Parser failed on format: {raw_output}"
+  
+  # GOOD: Reveals test configuration problems
+  assert len(data_tables) > 0, "Test dataset should have data tables. Check configuration."
+  ```
+
 ## Environment Consistency Requirements
 
 This repository supports three distinct environments that must be kept consistent:

@@ -14,6 +14,13 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 from server import PowerBIConnector, clean_dax_query
 
 
+@pytest.fixture
+def mock_pyadomd():
+    """Mock pyadomd for testing"""
+    with patch("server.Pyadomd") as mock:
+        yield mock
+
+
 @pytest.mark.unit
 class TestPowerBIConnector:
     """Test cases for PowerBIConnector"""
@@ -22,12 +29,6 @@ class TestPowerBIConnector:
     def connector(self):
         """Create a PowerBIConnector instance"""
         return PowerBIConnector()
-
-    @pytest.fixture
-    def mock_pyadomd(self):
-        """Mock pyadomd for testing"""
-        with patch("server.Pyadomd") as mock:
-            yield mock
 
     def test_initialization(self, connector):
         """Test connector initializes with correct defaults"""
@@ -313,6 +314,123 @@ class TestPyadomdUnavailable:
 
 @pytest.mark.unit
 @patch("server.Pyadomd")
+class TestTableInfoHandling:
+    """Test proper handling of table info with enhanced column format"""
+
+    @pytest.mark.unit
+    def test_handle_get_table_info_with_enhanced_columns(self, mock_pyadomd):
+        """Test that _handle_get_table_info properly handles enhanced column format"""
+        # This test prevents regression of the bug where enhanced columns 
+        # (containing dicts) were passed to ', '.join() expecting strings
+        
+        from server import PowerBIMCPServer
+        import asyncio
+        
+        server = PowerBIMCPServer()
+        server.is_connected = True
+        
+        # Mock connector that returns enhanced column format
+        class MockConnector:
+            def get_table_schema(self, table_name):
+                return {
+                    "table_name": table_name,
+                    "type": "data_table", 
+                    "description": "Test table description",
+                    "columns": [
+                        {
+                            "name": "Column1",
+                            "description": "First column description",
+                            "data_type": "String"
+                        },
+                        {
+                            "name": "Column2", 
+                            "description": "Second column description",
+                            "data_type": "Integer"
+                        }
+                    ]
+                }
+            
+            def get_sample_data(self, table_name, num_rows):
+                return [{"Column1": "value1", "Column2": 123}]
+        
+        server.connector = MockConnector()
+        
+        # Test that this doesn't raise "expected str instance, dict found" error
+        async def run_test():
+            result = await server._handle_get_table_info({"table_name": "TestTable"})
+            
+            # Verify the result format
+            assert isinstance(result, str), "Result should be a string"
+            assert "TestTable" in result, "Result should contain table name"
+            assert "Column1" in result, "Result should contain column names"
+            assert "Column2" in result, "Result should contain column names"
+            assert "First column description" in result, "Result should contain column descriptions"
+            assert "Second column description" in result, "Result should contain column descriptions"
+            assert "String" in result, "Result should contain data types"
+            assert "Integer" in result, "Result should contain data types"
+            
+            return result
+        
+        # Run the async test
+        result = asyncio.run(run_test())
+        
+        # Additional verification that the format is user-friendly
+        assert "Column Details:" in result, "Should include detailed column information"
+        assert "Sample data:" in result, "Should include sample data section"
+
+    @pytest.mark.unit
+    def test_old_bug_reproduction(self, mock_pyadomd):
+        """Test that reproduces the original bug scenario to ensure it's fixed"""
+        # This test verifies that the bug "sequence item 0: expected str instance, dict found"
+        # is fixed when enhanced columns are used with ', '.join()
+        
+        from server import PowerBIMCPServer
+        import asyncio
+        
+        server = PowerBIMCPServer()
+        server.is_connected = True
+        
+        # Mock connector that returns the enhanced column format that caused the bug
+        class BugReproducingMockConnector:
+            def get_table_schema(self, table_name):
+                # Return exactly the format that caused the original bug
+                return {
+                    "table_name": table_name,
+                    "type": "data_table",
+                    "description": "Test table", 
+                    "columns": [
+                        {"name": "Skill Definitions", "description": "Skill def", "data_type": "Text"},
+                        {"name": "ID", "description": "Identifier", "data_type": "Integer"}
+                    ]
+                }
+            
+            def get_sample_data(self, table_name, num_rows):
+                return [{"Skill Definitions": "Python", "ID": 1}]
+        
+        server.connector = BugReproducingMockConnector()
+        
+        # This would previously fail with "sequence item 0: expected str instance, dict found"
+        # Now it should work correctly
+        async def run_bug_test():
+            result = await server._handle_get_table_info({"table_name": "Skill Definitions"})
+            
+            # Verify the result is properly formatted
+            assert isinstance(result, str), "Result should be a string"
+            assert "Skill Definitions" in result, "Should contain table name"
+            assert "Skill def" in result, "Should contain column description"
+            assert "Text" in result, "Should contain data type"
+            assert "Identifier" in result, "Should contain second column description"
+            
+            # Most importantly, it should NOT crash with join error
+            return result
+        
+        # This should not raise the original error
+        result = asyncio.run(run_bug_test())
+        
+        # Additional verification that the bug is truly fixed
+        assert "Error getting table info:" not in result, "Should not contain error message"
+
+
 class TestColumnDescriptions:
     """Test column descriptions functionality"""
 

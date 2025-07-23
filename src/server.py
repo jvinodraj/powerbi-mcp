@@ -1104,12 +1104,18 @@ class PowerBIMCPServer:
                 sample_data = await asyncio.get_event_loop().run_in_executor(
                     None, self.connector.get_sample_data, table_name, 5
                 )
+                # Extract column names from enhanced column objects
+                column_names = [col["name"] for col in schema["columns"]]
                 result = (
                     f"Table: {table_name}\n"
                     f"Type: Data Table\n"
                     f"Description: {schema.get('description', 'No description available')}\n"
-                    f"Columns: {', '.join(schema['columns'])}\n\nSample data:\n"
+                    f"Columns: {', '.join(column_names)}\n\nColumn Details:\n"
                 )
+                # Add detailed column information
+                for col in schema["columns"]:
+                    result += f"  - {col['name']}: {col.get('description', 'No description')} ({col.get('data_type', 'Unknown type')})\n"
+                result += f"\nSample data:\n"
                 result += safe_json_dumps(sample_data, indent=2)
             elif schema["type"] == "measure_table":
                 result = (
