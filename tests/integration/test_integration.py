@@ -300,7 +300,9 @@ class TestPowerBIIntegration:
                 break
 
         if not data_table:
-            assert False, "Test dataset should have at least one data table for DAX query testing. Check test configuration."
+            assert (
+                False
+            ), "Test dataset should have at least one data table for DAX query testing. Check test configuration."
 
         # Execute simple query
         dax_query = f"EVALUATE TOPN(1, '{data_table}')"
@@ -338,7 +340,9 @@ class TestPowerBIIntegration:
                 break
 
         if not data_table:
-            assert False, "Test dataset should have at least one data table for sample data testing. Check test configuration."
+            assert (
+                False
+            ), "Test dataset should have at least one data table for sample data testing. Check test configuration."
 
         sample_data = connector.get_sample_data(data_table, num_rows=3)
 
@@ -557,7 +561,9 @@ class TestMCPServerIntegration:
                 table_name = line[5:-2]  # Remove "📊 **" from start and "**" from end
                 break
 
-        assert table_name is not None, f"Could not extract table name from tables list. Format may have changed. Raw output:\n{tables_result}"
+        assert (
+            table_name is not None
+        ), f"Could not extract table name from tables list. Format may have changed. Raw output:\n{tables_result}"
         assert len(table_name.strip()) > 0, f"Extracted table name is empty. Raw output:\n{tables_result}"
 
         # Test getting table info

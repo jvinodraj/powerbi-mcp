@@ -1115,7 +1115,7 @@ class PowerBIMCPServer:
                 # Add detailed column information
                 for col in schema["columns"]:
                     result += f"  - {col['name']}: {col.get('description', 'No description')} ({col.get('data_type', 'Unknown type')})\n"
-                result += f"\nSample data:\n"
+                result += "\nSample data:\n"
                 result += safe_json_dumps(sample_data, indent=2)
             elif schema["type"] == "measure_table":
                 result = (
