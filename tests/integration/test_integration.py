@@ -252,12 +252,15 @@ class TestPowerBIIntegration:
         schema = connector.get_table_schema(table_name)
 
         columns_with_descriptions = [
-            col for col in schema["columns"] 
+            col
+            for col in schema["columns"]
             if col.get("description") and col["description"] != "No description available"
         ]
 
         # At least one column should have a real description
-        assert len(columns_with_descriptions) > 0, f"Table '{table_name}' should have at least one column with a real description"
+        assert (
+            len(columns_with_descriptions) > 0
+        ), f"Table '{table_name}' should have at least one column with a real description"
 
         # Check that descriptions are meaningful (more than just the column name)
         for col in columns_with_descriptions:

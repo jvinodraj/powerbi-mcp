@@ -315,8 +315,8 @@ class PowerBIConnector:
                         # If no exact match, try partial match (remove table prefix if present)
                         if not col_description:
                             # Extract column name from format like "Employee Skills[Id]" -> "Id"
-                            if '[' in col_name and ']' in col_name:
-                                clean_col_name = col_name.split('[')[1].replace(']', '')
+                            if "[" in col_name and "]" in col_name:
+                                clean_col_name = col_name.split("[")[1].replace("]", "")
                             else:
                                 clean_col_name = col_name
 
@@ -328,11 +328,13 @@ class PowerBIConnector:
                                     break
 
                         # Create enhanced column info
-                        enhanced_columns.append({
-                            "name": col_name,
-                            "description": col_description or "No description available",
-                            "data_type": col_data_type
-                        })
+                        enhanced_columns.append(
+                            {
+                                "name": col_name,
+                                "description": col_description or "No description available",
+                                "data_type": col_data_type,
+                            }
+                        )
 
                     return {
                         "table_name": table_name,
@@ -598,11 +600,11 @@ class PowerBIConnector:
                 # Get column descriptions from TMSCHEMA_COLUMNS
                 cursor = conn.cursor()
                 columns_query = f"""
-                SELECT 
+                SELECT
                     [ExplicitName] as ColumnName,
                     [Description] as ColumnDescription,
                     [ExplicitDataType] as DataType
-                FROM $SYSTEM.TMSCHEMA_COLUMNS 
+                FROM $SYSTEM.TMSCHEMA_COLUMNS
                 WHERE [TableID] = {table_id}
                 ORDER BY [ExplicitName]
                 """
@@ -620,11 +622,9 @@ class PowerBIConnector:
                     col_description = col_result[1] if len(col_result) > 1 and col_result[1] else None
                     col_data_type = col_result[2] if len(col_result) > 2 else None
 
-                    column_descriptions.append({
-                        "name": col_name,
-                        "description": col_description,
-                        "data_type": col_data_type
-                    })
+                    column_descriptions.append(
+                        {"name": col_name, "description": col_description, "data_type": col_data_type}
+                    )
 
                     # Debug output
                     desc_text = col_description if col_description else "No description"
@@ -635,6 +635,7 @@ class PowerBIConnector:
         except Exception as e:
             logger.warning(f"Failed to get column descriptions for table '{table_name}': {str(e)}")
             import traceback
+
             logger.debug(f"Traceback: {traceback.format_exc()}")
             return []
 

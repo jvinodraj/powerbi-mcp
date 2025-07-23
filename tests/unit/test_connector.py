@@ -332,11 +332,11 @@ class TestColumnDescriptions:
         mock_cursor1.fetchone.return_value = iter([(15,)])  # Table ID generator with tuple
         mock_cursor1.close = MagicMock()
 
-        # Mock cursor for columns query  
+        # Mock cursor for columns query
         mock_cursor2 = MagicMock()
         mock_cursor2.fetchall.return_value = [
             ("Id", "Primary key identifier", 6),
-            ("Name", "Display name of the entity", 2), 
+            ("Name", "Display name of the entity", 2),
             ("Value", None, 6),  # Column without description
         ]
         mock_cursor2.close = MagicMock()
@@ -352,11 +352,11 @@ class TestColumnDescriptions:
         assert result[0]["name"] == "Id"
         assert result[0]["description"] == "Primary key identifier"
         assert result[0]["data_type"] == 6
-        
+
         assert result[1]["name"] == "Name"
         assert result[1]["description"] == "Display name of the entity"
         assert result[1]["data_type"] == 2
-        
+
         assert result[2]["name"] == "Value"
         assert result[2]["description"] is None  # No description
         assert result[2]["data_type"] == 6
@@ -381,7 +381,7 @@ class TestColumnDescriptions:
 
         # The get_table_schema method makes multiple calls with different cursors
         # 1. _get_table_description_direct (which creates its own connection)
-        # 2. DAX query for column names  
+        # 2. DAX query for column names
         # 3. _get_column_descriptions (which creates its own connection)
 
         # For the main DAX query cursor (used for column names)
@@ -394,25 +394,27 @@ class TestColumnDescriptions:
 
         # Mock the helper methods directly since they create their own connections
         connector._get_table_description_direct = Mock(return_value="Test table description")
-        connector._get_column_descriptions = Mock(return_value=[
-            {"name": "Id", "description": "Primary key", "data_type": 6},
-            {"name": "Name", "description": "Entity name", "data_type": 2},
-        ])
+        connector._get_column_descriptions = Mock(
+            return_value=[
+                {"name": "Id", "description": "Primary key", "data_type": 6},
+                {"name": "Name", "description": "Entity name", "data_type": 2},
+            ]
+        )
 
         # Execute
         result = connector.get_table_schema("TestTable")
 
         # Verify results
-        assert result["table_name"] == "TestTable" 
+        assert result["table_name"] == "TestTable"
         assert result["type"] == "data_table"
         assert result["description"] == "Test table description"
         assert len(result["columns"]) == 2
-        
+
         # Check enhanced column structure
         assert result["columns"][0]["name"] == "TestTable[Id]"
         assert result["columns"][0]["description"] == "Primary key"
         assert result["columns"][0]["data_type"] == 6
-        
+
         assert result["columns"][1]["name"] == "TestTable[Name]"
         assert result["columns"][1]["description"] == "Entity name"
         assert result["columns"][1]["data_type"] == 2
