@@ -34,9 +34,19 @@ A Model Context Protocol (MCP) server that enables AI assistants to interact wit
 
 ## 🚀 Quick Start
 
+### System Requirements & Platform Compatibility
+
+| Platform | Python | .NET Runtime | ADOMD.NET | Status |
+|----------|--------|--------------|-----------|--------|
+| Windows  | 3.10+  | ✅ Built-in    | ✅ Available | ✅ Full Support |
+| Linux    | 3.10+  | ✅ Available   | ⚠️ Docker only | ✅ Docker Support |
+| macOS    | 3.10+  | ✅ Available   | ❌ Not available | ❌ Not supported |
+
+**Note**: For Linux systems, use Docker to run the server with all dependencies included.
+
 ### Prerequisites
 
-- Python 3.8 or higher
+- Python 3.10 or higher (3.8+ may work but not officially supported)
 - Windows with ADOMD.NET **or** Docker on Linux (container includes the runtime)
 - SQL Server Management Studio (SSMS) or ADOMD.NET client libraries (Windows only)
 - Power BI Pro/Premium with XMLA endpoint enabled
@@ -91,6 +101,10 @@ Add to your Claude Desktop configuration file:
 
 ### Docker
 
+**⚠️ Important**: Docker containers do **NOT** use `.env` files. The `.env` file is excluded 
+from the Docker build context for security. You must provide environment variables via 
+`docker run -e`, Docker Compose, or your cloud platform.
+
 Build the container image:
 ```bash
 docker build -t powerbi-mcp .
@@ -113,9 +127,16 @@ the initial `endpoint` event (typically `/messages/`).
 
 The container includes the .NET runtime required by `pythonnet` and `pyadomd`.
 It sets `PYTHONNET_RUNTIME=coreclr` and `DOTNET_ROOT=/usr/share/dotnet` so the
-.NET runtime is detected automatically. Environment variables mirror those in
-`.env.example`; pass them with `-e VAR=value` or provide a `.env` file in the
-build context.
+.NET runtime is detected automatically.
+
+**Important**: The Docker container does **NOT** use `.env` files. Any `.env` file in your
+local directory will be excluded from the Docker image via `.dockerignore` for security reasons.
+Instead, provide environment variables using:
+- `docker run -e VARIABLE=value`
+- Docker Compose environment variables
+- Cloud platform environment variable injection
+
+The available environment variables mirror those in `.env.example`.
 
 ## 📖 Usage
 
@@ -213,16 +234,75 @@ powerbi-mcp-server/
 
 ## 🧪 Testing
 
-Run the test suite:
+### Unit Tests
+
+Run the standard test suite:
 ```bash
 python -m pytest tests/
 ```
 
 Test specific functionality:
 ```bash
-python tests/test_connection.py
-python tests/test_dax_generation.py
+python tests/test_connector.py
+python tests/test_server_process.py
 ```
+
+### Integration Tests
+
+Real integration tests with Power BI datasets are available but disabled by default. These tests connect to actual Power BI services and may consume API quota.
+
+**Enable Integration Tests:**
+
+1. **Configure test environment**
+   ```bash
+   cp .env.example .env
+   # Edit .env file and set:
+   ENABLE_INTEGRATION_TESTS=true
+   ```
+
+2. **Set test dataset configuration**
+   ```env
+   # Test Power BI Dataset Configuration
+   TEST_XMLA_ENDPOINT=powerbi://api.powerbi.com/v1.0/myorg/YourTestWorkspace
+   TEST_TENANT_ID=your_tenant_id
+   TEST_CLIENT_ID=your_client_id  
+   TEST_CLIENT_SECRET=your_client_secret
+   TEST_INITIAL_CATALOG=YourTestDatasetName
+   
+   # Optional: Expected test data for validation
+   TEST_EXPECTED_TABLE=Sales
+   TEST_EXPECTED_COLUMN=Amount
+   TEST_DAX_QUERY=EVALUATE TOPN(1, Sales)
+   TEST_MIN_TABLES_COUNT=1
+   ```
+
+3. **Run integration tests**
+   ```bash
+   # Interactive runner with safety checks
+   python run_integration_tests.py
+   
+   # Or directly with pytest
+   python -m pytest tests/test_integration.py -v
+   
+   # Run with auto-confirmation (CI/CD)
+   python run_integration_tests.py --yes
+   ```
+
+**Integration Test Coverage:**
+- ✅ Power BI dataset connection
+- ✅ Table discovery and schema retrieval
+- ✅ DAX query execution
+- ✅ Sample data retrieval
+- ✅ MCP tool interface testing
+- ✅ Natural language query generation (with OpenAI)
+- ✅ AI-powered suggestions (with OpenAI)
+
+**⚠️ Warning:** Integration tests connect to real Power BI datasets and may consume:
+- XMLA endpoint usage quota
+- OpenAI API tokens
+- Network bandwidth
+
+Only run integration tests in dedicated test environments.
 
 ## 🤝 Contributing
 
@@ -240,6 +320,33 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for deta
 - **Query execution**: 1-5 seconds depending on complexity
 - **Token usage**: ~500-2000 tokens per query with GPT-4o-mini
 - **Cost**: ~$0.02-0.06 per day for typical usage
+
+## 🧪 Testing
+
+### Running Tests
+
+```bash
+# Check environment compatibility
+python scripts/check_test_environment.py
+
+# Run unit tests
+python -m pytest tests/ -k "not test_integration" -v
+
+# Run integration tests (requires .env configuration)
+python -m pytest tests/test_integration.py -v
+```
+
+### Test Environment Requirements
+
+- Python 3.10+ (recommended)
+- All dependencies from requirements.txt
+- For integration tests: valid Power BI connection credentials
+
+### Platform-Specific Testing
+
+- **Windows**: Full test suite supported
+- **Linux**: Unit tests only (use Docker for integration tests)
+- **macOS**: Unit tests only (limited support)
 
 ## 🐛 Troubleshooting
 
