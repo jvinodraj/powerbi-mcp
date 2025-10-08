@@ -57,8 +57,8 @@ A Model Context Protocol (MCP) server that enables AI assistants to interact wit
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/powerbi-mcp-server.git
-   cd powerbi-mcp-server
+   git clone https://github.com/yourusername/powerbi-mcp.git
+   cd powerbi-mcp
    ```
 
 2. **Install dependencies**
@@ -89,9 +89,9 @@ Add to your Claude Desktop configuration file:
   "mcpServers": {
     "powerbi": {
       "command": "python",
-      "args": ["C:/path/to/powerbi-mcp-server/src/server.py"],
+      "args": ["C:/path/to/powerbi-mcp/src/server.py"],
       "env": {
-        "PYTHONPATH": "C:/path/to/powerbi-mcp-server",
+        "PYTHONPATH": "C:/path/to/powerbi-mcp",
         "OPENAI_API_KEY": "your-openai-api-key"
       }
     }
